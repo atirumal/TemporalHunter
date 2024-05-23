@@ -1003,11 +1003,11 @@ const Movement_Controls = defs.Movement_Controls =
             this.new_line();
 
             this.key_triggered_button("Up", [" "], () => this.thrust[1] = -1, undefined, () => this.thrust[1] = 0);
-            this.key_triggered_button("Forward", ["i"], () => this.thrust[2] = 1, undefined, () => this.thrust[2] = 0);
+            this.key_triggered_button("Forward", ["w"], () => this.thrust[2] = 0.1, undefined, () => this.thrust[2] = 0);
             this.new_line();
-            this.key_triggered_button("Left", ["j"], () => this.thrust[0] = 1, undefined, () => this.thrust[0] = 0);
-            this.key_triggered_button("Back", ["k"], () => this.thrust[2] = -1, undefined, () => this.thrust[2] = 0);
-            this.key_triggered_button("Right", ["l"], () => this.thrust[0] = -1, undefined, () => this.thrust[0] = 0);
+            this.key_triggered_button("Left", ["a"], () => this.thrust[0] = 0.1, undefined, () => this.thrust[0] = 0);
+            this.key_triggered_button("Back", ["s"], () => this.thrust[2] = -0.1, undefined, () => this.thrust[2] = 0);
+            this.key_triggered_button("Right", ["d"], () => this.thrust[0] = -0.1, undefined, () => this.thrust[0] = 0);
             this.new_line();
             this.key_triggered_button("Down", ["z"], () => this.thrust[1] = 1, undefined, () => this.thrust[1] = 0);
 
@@ -1101,7 +1101,7 @@ const Movement_Controls = defs.Movement_Controls =
             this.inverse().pre_multiply(Mat4.translation(0, 0, -25));
         }
 
-        display(context, graphics_state, dt = graphics_state.animation_delta_time / 1000) {
+        display(context, graphics_state, dt = graphics_state.animation_delta_time / 700) {
             // The whole process of acting upon controls begins here.
             const m = this.speed_multiplier * this.meters_per_frame,
                 r = this.speed_multiplier * this.radians_per_frame;

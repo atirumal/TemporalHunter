@@ -1319,6 +1319,8 @@ const Webgl_Manager = tiny.Webgl_Manager =
                 || function (callback, element) {
                     w.setTimeout(callback, 1000 / 60);
                 })(window);
+
+            this.currentTime = 0;
         }
 
         set_size(dimensions = [1080, 600]) {
@@ -1339,6 +1341,10 @@ const Webgl_Manager = tiny.Webgl_Manager =
             // render(): Draw a single frame of animation, using all loaded Scene objects.  Measure
             // how much real time has transpired in order to animate shapes' movements accordingly.
             this.program_state.animation_delta_time = time - this.prev_time;
+
+          //  console.log("the time between frames is " + (this.program_state.animation_time - this.currentTime));
+            this.currentTime = this.program_state.animation_time;
+            
             if (this.program_state.animate) this.program_state.animation_time += this.program_state.animation_delta_time;
             this.prev_time = time;
 

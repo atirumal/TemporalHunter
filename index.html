@@ -1,17 +1,42 @@
-<!-- Graphics Example Code.  
-    index.html - The web page document containing the canvas (drawing surface).  It launches your JavaScript files.
--->
 <!DOCTYPE html>
-<html lang="En">
+<html lang="en">
 <head>
     <meta charset="UTF-8"/>
     <link href="assets/fav.ico" rel="icon">
     <title>Tiny Graphics</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        .canvas-container {
+            position: relative;
+            z-index: 1;
+            width: 80%;
+        }
+        .canvas-widget{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .crosshair-canvas {
+            position: relative;
+            z-index: 0;
+            top: 0;
+            left: 0;
+           
+
+            pointer-events: none; /* Ensure the crosshair canvas does not interfere with user input */
+        }
+    </style>
 </head>
-<body style="background: White">
-<!-- Begin typing your web page here. -->
-<!-- The following code embeds a WebGL canvas panel, loads certain scene(s), and displays panel(s) of their controls.-->
-<div class="canvas-widget" id="main-canvas"></div>
+<body style="background: white">
+<div class="canvas-container">
+    <div class="canvas-widget" id="main-canvas"></div>
+    <canvas id="crosshair-canvas" class="crosshair-canvas" height="600px" width="1080px"></canvas>
+</div>
 <script type=module>
     // ********************* THE ENTRY POINT OF YOUR WHOLE PROGRAM STARTS HERE *********************
     // Indicate which element on the page you want the Canvas_Widget to replace with a 3D WebGL area:
@@ -20,8 +45,9 @@
     // Import the file that defines a scene.
     const scenes = [Main_Scene, ...Additional_Scenes].map(scene => new scene());
     // This line creates your scene.
-    new Canvas_Widget(element_to_replace, scenes);
-</script>
+    const canvasWidget = new Canvas_Widget(element_to_replace, scenes);
+    const crosshairCanvas = document.getElementById('crosshair-canvas');
 
+</script>
 </body>
 </html>
