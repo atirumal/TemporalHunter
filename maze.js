@@ -43,7 +43,7 @@ class Projectile {
     update(dt) {
        // console.log("hi");
         // Update position based on direction and speed
-        this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(0.8*dt)));
+        this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(this.speed*dt)));
     }
 
     render(context, program_state, material, shapes, gunMaterial, currMat) {
@@ -61,7 +61,7 @@ class Projectile {
         if(this.timer <= (this.start/2)){
             downTr = 0.28 - this.timer/(this.start / 0.56);
         }
-        const gun_transform = Mat4.translation(-0.04,-0.06 - downTr,0.1).times(currMat
+        let gun_transform = Mat4.translation(-0.04,-0.06 - downTr,0.1).times(currMat
             .times(Mat4.rotation(-Math.PI/3.2, 1,0,0).
         times(Mat4.rotation(-Math.PI/1.8, 0,1,0)).
         times(Mat4.rotation(Math.PI/9, 1,0,0)).
@@ -69,7 +69,7 @@ class Projectile {
         shapes.cube.draw(context, program_state, gun_transform, gunMaterial);
 
 
-        const gun_transform2 = Mat4.translation(-0.125,-0.18 - downTr,0.13).times(currMat.
+        let gun_transform2 = Mat4.translation(-0.125,-0.18 - downTr,0.13).times(currMat.
         times(Mat4.rotation(0, 1,0,0).
         times(Mat4.rotation(Math.PI/9, 0,1,0)).
         times(Mat4.rotation(0, 1,0,0)).
@@ -635,7 +635,7 @@ export class Maze extends Base_Scene {
             this.proj_transf = Mat4.identity().times(Mat4.translation(this.person_location[0],this.person_location[1],this.person_location[2]));
             //this.proj_transf = Mat4.identity().times(Mat4.translation(this.camPosition[0],this.camPosition[1],this.camPosition[2]));
             let dirVec = this.lookatpoint.minus(vec3(this.person_location[0],this.person_location[1],this.person_location[2]));
-            const proj = new Projectile(this.proj_transf, 40, dirVec);
+            const proj = new Projectile(this.proj_transf, 8, dirVec);
             this.projList.push(proj);
             this.projDelay = 20;
         }
@@ -804,7 +804,9 @@ export class Maze extends Base_Scene {
             }
             
             for (let p of this.projList) {
-                p.render(context, program_state, this.materials.bullet, this.shapes, this.materials.gun, Mat4.translation(0.3,0,0).times(this.matrix()));
+                let temp = Mat4.translation(0.3,0,0).times(this.matrix());
+               // temp = program_state.camera_inverse;
+                p.render(context, program_state, this.materials.bullet, this.shapes, this.materials.gun, temp);
                 
                 
             }
@@ -847,10 +849,10 @@ export class Maze extends Base_Scene {
             if (document.pointerLockElement === canvas ||
                 document.mozPointerLockElement === canvas ||
                 document.webkitPointerLockElement === canvas) {
-                console.log('The pointer is now locked.');
+              //  console.log('The pointer is now locked.');
                 document.addEventListener('mousemove', updatePosition, false);
             } else {
-                console.log('The pointer is now unlocked.');
+              //  console.log('The pointer is now unlocked.');
                 document.removeEventListener('mousemove', updatePosition, false);
             }
         };
@@ -864,7 +866,7 @@ export class Maze extends Base_Scene {
             const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
     
             // Handle the mouse movement
-            console.log('Mouse moved:', movementX, movementY);
+           // console.log('Mouse moved:', movementX, movementY);
 
             let sens = 0.1;
             this.lookatpoint[1] += -1 * movementY * sens;
