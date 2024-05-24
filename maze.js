@@ -24,9 +24,59 @@ const {
     Phong_Shader,
     Textured_Phong_Normal_Map,
     Funny_Shader,
+    Cylindrical_Tube,
 } = defs; // extracts specific shapes and shaders from the defs module
 
 const original_box_size = 2;
+
+class Projectile {
+    constructor(currMatrix, speed) {
+        this.initial = currMatrix;
+        this.model_transform = currMatrix.times(Mat4.scale(.1, .1, .1));;
+        this.direction = currMatrix.times(vec4(-1, 0, 0, 0)).to3();
+        this.speed = speed;
+        this.start = 30;
+        this.timer = this.start;
+    }
+
+    update(dt) {
+       // console.log("hi");
+        // Update position based on direction and speed
+        this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(this.speed*dt)));
+    }
+
+    render(context, program_state, material, shapes, gunMaterial, currMat) {
+        // Render the projectile using the capped cylinder shape
+        if(this.timer > 0){
+            this.draw_gun(context, program_state, shapes, gunMaterial, currMat);
+            this.timer = this.timer - 1;
+        }
+        shapes.bullet.draw(context, program_state, this.model_transform, material);
+        
+    }
+
+    draw_gun(context, program_state, shapes, gunMaterial, currMat){
+        let downTr = 0;
+        if(this.timer <= (this.start/2)){
+            downTr = 0.28 - this.timer/(this.start / 0.56);
+        }
+        const gun_transform = Mat4.translation(-0.04,-0.06 - downTr,0.1).times(currMat
+            .times(Mat4.rotation(-Math.PI/3.2, 1,0,0).
+        times(Mat4.rotation(-Math.PI/1.8, 0,1,0)).
+        times(Mat4.rotation(Math.PI/9, 1,0,0)).
+        times(Mat4.scale(0.04, 0.1, 0.03))));
+        shapes.cube.draw(context, program_state, gun_transform, gunMaterial);
+
+
+        const gun_transform2 = Mat4.translation(-0.125,-0.18 - downTr,0.13).times(currMat.
+        times(Mat4.rotation(0, 1,0,0).
+        times(Mat4.rotation(Math.PI/9, 0,1,0)).
+        times(Mat4.rotation(0, 1,0,0)).
+        times(Mat4.scale(0.04, 0.1, 0.01))));
+        shapes.cube.draw(context, program_state, gun_transform2, gunMaterial);
+    }
+}
+
 
 class Base_Scene extends Scene {
     /**
@@ -44,7 +94,8 @@ class Base_Scene extends Scene {
             'person': new Cube(),
             'sphere': new Subdivision_Sphere(6),
             'chest': new Cube(),
-            'bullet': new Rounded_Capped_Cylinder(50, 50),
+            'bullet': new Rounded_Capped_Cylinder(150, 50),
+            'rectangle': new Cylindrical_Tube(4, 80),
 
 
         };
@@ -84,9 +135,16 @@ class Base_Scene extends Scene {
             }),
             bullet: new Material(new Textured_Phong(),{
             
-            })
+            }),
+            gun: new Material(new Textured_Phong(),{
+                ambient: 1, diffusivity: 0.8, specularity: 0,
+                texture: new Texture("./assets/weapon.jpg"),
+            }),
+
 
         };
+
+        this.gun_active = false;
 
         this.look_at_direction = vec4(1, 0, 0, 0); // Vector indicating the direction the camera is looking
         this.person_location = vec4(2, 0, -2, 0); // initial location of the person
@@ -147,6 +205,10 @@ export class Maze extends Base_Scene {
             res.push(resc);
         }
         this.map_plane = res // stores projected 2d coords of maze walls
+        this.proj = null;
+        this.projList = [];
+        this.freeze = false;
+        this.projDelay = 0;
         
         //movement stuff 
         this.tick = 0;
@@ -272,13 +334,7 @@ export class Maze extends Base_Scene {
         ]
     }
 
-    spawn_projectile() {
-        const camera_transform = this.camera_transformation;
-        const position = camera_transform.times(Vec.of(0, 0, 0, 1)).to3();
-        const direction = camera_transform.times(Vec.of(0, 0, -1, 0)).to3().normalized();
-        const projectile = new Projectile(position, direction, this.projectile_speed);
-        this.projectiles.push(projectile);
-    }
+
 
     // check if the player's new position (after movement) collides with the goal position
     check_winning_condition(new_person_location_tips) { // take in the projected 2D coordinates of the player's new position
@@ -566,11 +622,22 @@ export class Maze extends Base_Scene {
 
     }
 
-    draw_bullet(context, program_state){
-        console.log("hi");
-       // this.bullet_transform = Mat4.translation(0,0,0).times(this.person_transformation);
-        this.shapes.bullet.draw(context, program_state, this.bullet_transform, this.materials.bullet);
+
+    spawn_projectile(){
+        if(this.projDelay == 0){
+            this.proj_transf = Mat4.translation(0.3,0,0).times(this.matrix());
+        
+      
+            const proj = new Projectile(this.proj_transf, 40);
+            this.projList.push(proj);
+            this.projDelay = 20;
+        }
+
+       
+        
     }
+
+
     
 
     // move box up and down at the same position
@@ -720,7 +787,27 @@ export class Maze extends Base_Scene {
 
         this.draw_person(context, program_state);
         this.draw_chest(context, program_state);
-        this.draw_bullet(context, program_state);
+        if(this.projList.length != 0){
+            //console.log("Should be showing...");
+            let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
+            if(!this.freeze || (this.freeze && anyMovement)){
+                for (let p of this.projList) {
+                    p.update(dt);
+                }
+            }
+            
+            for (let p of this.projList) {
+                p.render(context, program_state, this.materials.bullet, this.shapes, this.materials.gun, Mat4.translation(0.3,0,0).times(this.matrix()));
+                
+                
+            }
+            if(this.projDelay > 0){
+                this.projDelay = this.projDelay - 1;
+            }
+            
+            //this.proj.render(context, program_state, this.materials.bullet, this.shapes);
+        }
+        
 
         this.tick = this.tick + 1;
         this.draw_crosshair();
@@ -789,7 +876,8 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Right", ["d"], () => this.thrust[0] = -0.1, undefined, () => this.thrust[0] = 0);
         this.new_line();
         this.key_triggered_button("Down", ["z"], () => this.thrust[1] = 1, undefined, () => this.thrust[1] = 0);
-
+        this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
+        this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
         this.key_triggered_button("-", ["o"], () =>
@@ -870,9 +958,9 @@ export class Maze extends Base_Scene {
 
         let new_player_loc = this.matrix().times(vec4(0,0,0,1));
         
-       // console.log("current position is " + this.pos);
+        //console.log("current position is " + this.pos);
        // console.log("current player position is " + this.person_location);
-
+              
         const new_person_location_tips = this.get_person_box_tips(new_player_loc);
 
         let ok = true;
