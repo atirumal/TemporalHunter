@@ -152,9 +152,14 @@ class Base_Scene extends Scene {
             .times(Mat4.translation(2, -0.5, -2))
             .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
             .times(Mat4.scale(0.3, 0.3, 0.3));
-        this.camera_transformation = Mat4.identity() // transformation matrix for the camera
-            .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
-            .times(Mat4.translation(-2, -0.8, 2));
+        this.camPosition = vec3(2, 0.8, -2);
+        this.lookatpoint = vec3(10, 0.8, -2);
+        this.upvector = vec3(0, 1, 0);
+        this.camera_transformation = Mat4.identity(); // transformation matrix for the camera
+        this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
+            //.times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
+            //.times(Mat4.translation(-2, -0.8, 2));
+        
 
         this.goal_position = vec3(34, 0, -10); // position of the goal chest in the game
         this.treasure_base_transform = Mat4.translation(...this.goal_position)
@@ -832,6 +837,42 @@ export class Maze extends Base_Scene {
     add_mouse_controls(canvas) {
         // add_mouse_controls():  Attach HTML mouse events to the drawing canvas.
         // First, measure mouse steering, for rotating the flyaround camera:
+        
+        canvas.addEventListener('click', () => {
+            canvas.requestPointerLock();
+        });
+        const lockChangeAlert = () => {
+            if (document.pointerLockElement === canvas ||
+                document.mozPointerLockElement === canvas ||
+                document.webkitPointerLockElement === canvas) {
+                console.log('The pointer is now locked.');
+                document.addEventListener('mousemove', updatePosition, false);
+            } else {
+                console.log('The pointer is now unlocked.');
+                document.removeEventListener('mousemove', updatePosition, false);
+            }
+        };
+    
+        document.addEventListener('pointerlockchange', lockChangeAlert, false);
+        document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
+        document.addEventListener('webkitpointerlockchange', lockChangeAlert, false);
+    
+        const updatePosition = (event) => {
+            const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+            const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+    
+            // Handle the mouse movement
+            console.log('Mouse moved:', movementX, movementY);
+
+            let sens = 0.1;
+            this.lookatpoint[1] += -1 * movementY * sens;
+            this.lookatpoint[2] += movementX * sens;
+            this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
+    
+            // Example: Update the position of an object based on mouse movement
+            // object.position.x += movementX;
+            // object.position.y += movementY;
+        };
         this.mouse = { "from_center": vec(0, 0) };
         const mouse_position = (e, rect = canvas.getBoundingClientRect()) =>
             vec(e.clientX - (rect.left + rect.right) / 2, e.clientY - (rect.bottom + rect.top) / 2);
@@ -924,50 +965,75 @@ export class Maze extends Base_Scene {
         this.new_line();
     }
 
-    first_person_flyaround(radians_per_frame, meters_per_frame, leeway = 70) {
+    first_person_flyaround(radians_per_frame, meters_per_frame, leeway = 0) {
         // (Internal helper function)
         // Compare mouse's location to all four corners of a dead box:
         const offsets_from_dead_box = {
             plus: [this.mouse.from_center[0] + leeway, this.mouse.from_center[1] + leeway],
             minus: [this.mouse.from_center[0] - leeway, this.mouse.from_center[1] - leeway]
         };
+        //console.log("x distance is " + this.mouse.from_center[0]);
+        //console.log("y distance is " + this.mouse.from_center[1]);
         // Apply a camera rotation movement, but only when the mouse is
         // past a minimum distance (leeway) from the canvas's center:
         if (!this.look_around_locked)
+            
             // If steering, steer according to "mouse_from_center" vector, but don't
             // start increasing until outside a leeway window from the center.
             for (let i = 0; i < 2; i++) {                                     // The &&'s in the next line might zero the vectors out:
                 let o = offsets_from_dead_box,
                     velocity = ((o.minus[i] > 0 && o.minus[i]) || (o.plus[i] < 0 && o.plus[i])) * radians_per_frame;
                 // On X step, rotate around Y axis, and vice versa.
-                this.matrix().post_multiply(Mat4.rotation(-velocity, i, 1 - i, 0));
-                this.inverse().pre_multiply(Mat4.rotation(+velocity, i, 1 - i, 0));
+
+       
+                //this.camPosition = vec3(2, 0.8, -2);
+                //this.lookatpoint = vec3(10, 0.8, -2);
+                //this.upvector = vec3(0, 1, 0);
+                //this.lookatpoint[2] += 10*velocity;
+                //this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
+         
+
+                //this.matrix().post_multiply(Mat4.rotation(-velocity, i, 1 - i, 0));
+                //this.inverse().pre_multiply(Mat4.rotation(+velocity, i, 1 - i, 0));
             }
         this.matrix().post_multiply(Mat4.rotation(-.1 * this.roll, 0, 0, 1));
         this.inverse().pre_multiply(Mat4.rotation(+.1 * this.roll, 0, 0, 1));
         // Now apply translation movement of the camera, in the newest local coordinate frame.
-        this.matrix().post_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
-        this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
-        
-
-        // Log some values:
-        let oldPos = this.pos;
-        let oldZ = this.z_axis;
-        this.pos = this.inverse().times(vec4(0, 0, 0, 1));
-        this.z_axis = this.inverse().times(vec4(0, 0, 1, 0));       
-
-        let new_player_loc = this.matrix().times(vec4(0,0,0,1));
-        
-        //console.log("current position is " + this.pos);
-       // console.log("current player position is " + this.person_location);
+      //  this.matrix().post_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
+      //  this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
+        let f = this.camPosition[0];
+        let s = this.camPosition[2];
+        let t = this.lookatpoint[0];
+        let fw = this.lookatpoint[2];
               
+        this.camPosition[0] += this.thrust[2];
+        this.camPosition[2] += -1 * this.thrust[0];
+        this.lookatpoint[0] += this.thrust[2];
+        this.lookatpoint[2] += -1 * this.thrust[0];
+        this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
+
+        this.pos = this.inverse().times(vec4(0, 0, 0, 1));
+        this.z_axis = this.inverse().times(vec4(0, 0, 1, 0));
+
+        let new_player_loc = vec4(this.camPosition[0],this.camPosition[1],this.camPosition[2], 1);
+        
+        //console.log("current position is " + this.);
+       // console.log("current player position is " + this.person_location);
+
+
         const new_person_location_tips = this.get_person_box_tips(new_player_loc);
 
         let ok = true;
         ok = ok && this.check_person_colliding_wall(new_person_location_tips);
         if(!ok){
-            this.matrix().post_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
-            this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
+            //this.matrix().post_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
+            //this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
+            this.camPosition[0] = f;
+            this.camPosition[2] = s;
+            this.lookatpoint[0] = t;
+            this.lookatpoint[2] = fw;
+            this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
+
         //this.matrix().set(oldMatrix);
         // this.inverse().set(oldInvMatrix);
         // this.pos = oldPos;
