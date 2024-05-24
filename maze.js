@@ -30,10 +30,11 @@ const {
 const original_box_size = 2;
 
 class Projectile {
-    constructor(currMatrix, speed) {
+    constructor(currMatrix, speed, dir) {
         this.initial = currMatrix;
         this.model_transform = currMatrix.times(Mat4.scale(.1, .1, .1));;
-        this.direction = currMatrix.times(vec4(-1, 0, 0, 0)).to3();
+      //  this.direction = currMatrix.times(vec4(1, 0, 0, 0)).to3();
+        this.direction = dir;
         this.speed = speed;
         this.start = 30;
         this.timer = this.start;
@@ -42,7 +43,7 @@ class Projectile {
     update(dt) {
        // console.log("hi");
         // Update position based on direction and speed
-        this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(this.speed*dt)));
+        this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(0.8*dt)));
     }
 
     render(context, program_state, material, shapes, gunMaterial, currMat) {
@@ -630,10 +631,9 @@ export class Maze extends Base_Scene {
 
     spawn_projectile(){
         if(this.projDelay == 0){
-            this.proj_transf = Mat4.translation(0.3,0,0).times(this.matrix());
-        
-      
-            const proj = new Projectile(this.proj_transf, 40);
+            this.proj_transf = Mat4.identity().times(Mat4.translation(this.camPosition[0],this.camPosition[1],this.camPosition[2]));
+            let dirVec = this.lookatpoint;
+            const proj = new Projectile(this.proj_transf, 40, dirVec);
             this.projList.push(proj);
             this.projDelay = 20;
         }
