@@ -631,8 +631,10 @@ export class Maze extends Base_Scene {
 
     spawn_projectile(){
         if(this.projDelay == 0){
-            this.proj_transf = Mat4.identity().times(Mat4.translation(this.camPosition[0],this.camPosition[1],this.camPosition[2]));
-            let dirVec = this.lookatpoint;
+            
+            this.proj_transf = Mat4.identity().times(Mat4.translation(this.person_location[0],this.person_location[1],this.person_location[2]));
+            //this.proj_transf = Mat4.identity().times(Mat4.translation(this.camPosition[0],this.camPosition[1],this.camPosition[2]));
+            let dirVec = this.lookatpoint.minus(vec3(this.person_location[0],this.person_location[1],this.person_location[2]));
             const proj = new Projectile(this.proj_transf, 40, dirVec);
             this.projList.push(proj);
             this.projDelay = 20;
