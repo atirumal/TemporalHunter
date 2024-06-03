@@ -126,6 +126,7 @@ class Base_Scene extends Scene {
             light_src: new Material(new Phong_Shader(), {
                 color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
             }),
+            pure: new Material(new Color_Phong_Shader(), {}),
             depth_tex: new Material(new Depth_Texture_Shader_2D(), {
                 color: color(0, 0, .0, 1),
                 ambient: 1, diffusivity: 0, specularity: 0, texture: null
@@ -501,11 +502,11 @@ export class Maze extends Base_Scene {
     }
 
     // draw the floor of the maze
-    draw_floor(context, program_state) {
+    draw_floor(context, program_state, shadow_pass) {
         const floor_transformation = Mat4.identity()
             .times(Mat4.translation(20, -1, -10))
             .times(Mat4.scale(20, 0.2, 20));
-        this.shapes.cube.draw(context, program_state, floor_transformation, this.materials.floor);
+        this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
     }
 
     // draw the player character in the maze
@@ -613,7 +614,7 @@ export class Maze extends Base_Scene {
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z); // call draw_box function to obtain the model transformation for the current box
-            this.shapes.cube.draw(context, program_state, box_model_transform, this.materials.wall); // draw a cube representing a wall using the shapes.cube object
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall : this.materials.pure); // draw a cube representing a wall using the shapes.cube object
 
         }
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
@@ -1029,6 +1030,7 @@ export class Maze extends Base_Scene {
 
         let ok = true;
         ok = ok && this.check_person_colliding_wall(new_person_location_tips);
+        ok = ok && this.check_winning_condition(new_person_location_tips);
         if(!ok){
             //this.matrix().post_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
             //this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
