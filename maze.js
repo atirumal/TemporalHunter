@@ -869,14 +869,43 @@ export class Maze extends Base_Scene {
             // Handle the mouse movement
            // console.log('Mouse moved:', movementX, movementY);
 
+
+                        // Calculate the direction vector from camPosition to lookatpoint
+            const direction = [
+                this.lookatpoint[0] - this.camPosition[0],
+                this.lookatpoint[1] - this.camPosition[1],
+                this.lookatpoint[2] - this.camPosition[2]
+            ];
+            const radius = Math.sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
+
+            // Convert direction vector to spherical coordinates
+            let theta = Math.atan2(direction[2], direction[0]); 
+            let phi = Math.acos(direction[1] / radius); 
             let sens = 0.1;
-            this.lookatpoint[1] += -1 * movementY * sens;
-            this.lookatpoint[2] += movementX * sens;
+            theta += movementX * sens * Math.PI / 180; // Horizontal movement
+            phi += movementY * sens * Math.PI / 180; // Vertical movement
+            const epsilon = 0.01; 
+            phi = Math.max(0.01, Math.min(Math.PI - 0.01, phi));
+
+            // Convert back to Cartesian coordinates
+            this.lookatpoint[0] = this.camPosition[0] + radius * Math.sin(phi) * Math.cos(theta);
+            this.lookatpoint[1] = this.camPosition[1] + radius * Math.cos(phi);
+            this.lookatpoint[2] = this.camPosition[2] + radius * Math.sin(phi) * Math.sin(theta);
+
+            // Set the new camera transformation
             this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
-    
-            // Example: Update the position of an object based on mouse movement
-            // object.position.x += movementX;
-            // object.position.y += movementY;
+
+            /*
+                let sens = 0.1;
+                
+                this.lookatpoint[1] += -1 * movementY * sens;
+                this.lookatpoint[2] += movementX * sens;
+                this.lookatpoint[0] -= movementX * sens; // NEEDS TO BE CHANGED
+                this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector)); */
+        
+                // Example: Update the position of an object based on mouse movement
+                // object.position.x += movementX;
+                // object.position.y += movementY;
         };
         this.mouse = { "from_center": vec(0, 0) };
         const mouse_position = (e, rect = canvas.getBoundingClientRect()) =>
@@ -1010,11 +1039,55 @@ export class Maze extends Base_Scene {
         let s = this.camPosition[2];
         let t = this.lookatpoint[0];
         let fw = this.lookatpoint[2];
-              
+           
+        /*
         this.camPosition[0] += this.thrust[2];
         this.camPosition[2] += -1 * this.thrust[0];
         this.lookatpoint[0] += this.thrust[2];
         this.lookatpoint[2] += -1 * this.thrust[0];
+        this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector)); */
+        // Calculate the forward direction vector (from camPosition to lookatpoint)
+        const forwardDirection = [
+            this.lookatpoint[0] - this.camPosition[0],
+            0, // Ignore the y component
+            this.lookatpoint[2] - this.camPosition[2]
+        ];
+
+        // Normalize the forward direction vector
+        const forwardLength = Math.sqrt(forwardDirection[0] * forwardDirection[0] + forwardDirection[2] * forwardDirection[2]);
+        const normalizedForward = [
+            forwardDirection[0] / forwardLength,
+            0,
+            forwardDirection[2] / forwardLength
+        ];
+
+        // Calculate the perpendicular direction vector in the x-z plane
+        const perpendicularDirection = [
+            -normalizedForward[2],
+            0,
+            normalizedForward[0]
+        ];
+
+        // Scale the direction vectors by the thrust
+        const forwardMovement = [
+            normalizedForward[0] * this.thrust[2],
+            0,
+            normalizedForward[2] * this.thrust[2]
+        ];
+
+        const sideMovement = [
+            perpendicularDirection[0] * this.thrust[0],
+            0,
+            perpendicularDirection[2] * this.thrust[0]
+        ];
+
+        // Update the camera position and lookat point with both forward and side movement
+        this.camPosition[0] += forwardMovement[0] - sideMovement[0];
+        this.camPosition[2] += forwardMovement[2] - sideMovement[2];
+        this.lookatpoint[0] += forwardMovement[0] - sideMovement[0];
+        this.lookatpoint[2] += forwardMovement[2] - sideMovement[2];
+        
+        // Set the new camera transformation
         this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
 
         this.pos = this.inverse().times(vec4(0, 0, 0, 1));
@@ -1030,7 +1103,6 @@ export class Maze extends Base_Scene {
 
         let ok = true;
         ok = ok && this.check_person_colliding_wall(new_person_location_tips);
-        ok = ok && this.check_winning_condition(new_person_location_tips);
         if(!ok){
             //this.matrix().post_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
             //this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
