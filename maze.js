@@ -15,6 +15,7 @@ const {
 const MOVE = 1;
 const SHUFFLE = 2;
 const ATTACK = 3;
+const CHARGE = 4;
 
 const {
     Cube,
@@ -140,13 +141,19 @@ class Enemy {
             else if(this.moveStatus != SHUFFLE){
                 console.log("diff");
                 let r = Math.random();
-                if(r < 0.7){
+                if(r < 0.4){
                     this.moveStatus = ATTACK;
                     this.timer = 80;
+                }
+                else if(r < 0.75){
+                    this.moveStatus = CHARGE;
+                    this.timer = 45;
+                    this.speed = 0.18;
                 }
                 else{
                     this.moveStatus = MOVE;
                     this.timer = 100;
+                    this.speed = 0.04;
                 }
                 
      
@@ -158,7 +165,12 @@ class Enemy {
         if(this.moveStatus == SHUFFLE && this.distanceBetweenPoints(this.position, vec3(playerLoc[0],playerLoc[1],playerLoc[2])) < this.detectRange){
            
             this.moveStatus = MOVE;
-            this.speed = 0.04
+            this.speed = 0.04;
+        }
+
+        if(this.moveStatus == SHUFFLE && this.health < 5){
+            this.moveStatus = MOVE;
+            this.speed = 0.04;
         }
         else if(this.moveStatus == MOVE && this.distanceBetweenPoints(this.position, vec3(playerLoc[0],playerLoc[1],playerLoc[2])) > this.outRange){
             
@@ -168,7 +180,7 @@ class Enemy {
 
 
         // Update direction to point towards the playe
-        if(this.moveStatus == MOVE && this.reverseTimer == 0){
+        if((this.moveStatus == MOVE || this.moveStatus == CHARGE) && this.reverseTimer == 0){
          
             this.direction = vec3(
                 playerLoc[0] - this.position[0], 
@@ -255,8 +267,13 @@ class Enemy {
 
         // Draw left arm
         let leftAngle = angleArm;
+        let rightAngle = -angleArm;
         if(this.moveStatus == ATTACK){
             leftAngle = -Math.PI/2.9;
+        }
+        if(this.moveStatus == CHARGE){
+            leftAngle = -Math.PI/2.9;
+            rightAngle = -Math.PI/2.9;
         }
         let left_arm_transform = model_transform.times(Mat4.translation(0,0.6,0))
                                                 .times(Mat4.rotation(leftAngle,1,0,0))
@@ -268,7 +285,7 @@ class Enemy {
 
         // Draw right arm
         let right_arm_transform = model_transform.times(Mat4.translation(0,0.6,0))
-                                                .times(Mat4.rotation(-angleArm,1,0,0))
+                                                .times(Mat4.rotation(rightAngle,1,0,0))
                                                 .times(Mat4.translation(0,-0.6,0))
                                                 .times(Mat4.translation(0.5, 0, 0.15))
                                                  .times(Mat4.scale(0.1, 0.6, 0.1));
@@ -579,6 +596,8 @@ export class Maze extends Base_Scene {
         // Initialization
         this.smokeOrigin = vec3(15, 0.8, -2);
         this.particleSystem = new ParticleSystem(this.smokeOrigin, 10);
+        this.enemyKill = vec3(15,1,1);
+        this.enemyParticleSystem;
     }
 
     // generates a list of 2D vectors representing the corners of a square centered around a given base value
@@ -1167,15 +1186,22 @@ export class Maze extends Base_Scene {
                     e.health -= 1;
                     e.damageTimer = 5;
                     e.cooldownTimer = 40;
+                    if(e.health == 0){
+                        this.enemyKill = vec3(e.position[0],e.position[1]-1.5,e.position[2]);
+                        this.enemyParticleSystem = new ParticleSystem(this.enemyKill, 2);
+                    }
                 }
 
             }
         }
         for(let p of this.projList){
-            if(p.evil && this.check_bullet_collision(p,1)){
+            if(p.evil && this.check_bad_bullet_collision(p,1)){
                 console.log("Very ouch.");
                 this.projList = [];
                 if (confirm("You died. Click 'OK' to restart.")) {
+                    location.reload();
+                }
+                else{
                     location.reload();
                 }
                 
@@ -1184,7 +1210,21 @@ export class Maze extends Base_Scene {
         this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
         
 
-        
+        //collision between human and enemy
+        for(let e of this.enemyList){
+            let enemyPos = this.get_enemy_box_tips(e.position);
+            let personPos = this.get_person_box_tips(this.person_location);
+            if(this.box_collide_2d(personPos, enemyPos)){
+                e.health = 0;
+                this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
+                if (confirm("You died. Click 'OK' to restart.")) {
+                    location.reload();
+                }
+                else{
+                    location.reload();
+                }
+            }
+        }
         
 
 
@@ -1213,11 +1253,19 @@ export class Maze extends Base_Scene {
         }
 
         // Update the particle system
-        this.particleSystem.update(program_state.animation_delta_time / 1000);
+      //  this.particleSystem.update(program_state.animation_delta_time / 1000);
 
         // Render the particle system
-        this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
+      //  this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
 
+        if(this.enemyParticleSystem != null){
+            console.log("Present...");
+            this.enemyParticleSystem.update(program_state.animation_delta_time / 1000);
+
+            // Render the particle system
+            this.enemyParticleSystem.render(context, program_state, this.shapes, this.materials.light_src);
+        }
+       
         this.tick = this.tick + 1;
         this.draw_crosshair();
     }
