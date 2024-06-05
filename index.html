@@ -62,14 +62,14 @@
         // Countdown timer logic
         window.addEventListener('load', () => {
             let timerElement = document.getElementById('timer');
-            let totalTime = 60; // 1 minute in seconds
+            let totalTime = 10000000; // 1 minute in seconds
 
             function updateTimer() {
                 let minutes = Math.floor(totalTime / 60);
                 let seconds = totalTime % 60;
                 timerElement.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-                if (totalTime > 0) {
+                if (totalTime >= 0) {
                     totalTime--;
                 } else {
                     clearInterval(countdownInterval);

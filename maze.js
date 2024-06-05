@@ -9,8 +9,12 @@ import {
 } from "./examples/shadow_shaders.js"; // bring in various modules and definitions from other JavaScript files
 
 const {
-    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture,
+    Vector, Vector3, vec, Vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture,
 } = tiny; // extract several classes, functions, and constants from the tiny module
+
+const MOVE = 1;
+const SHUFFLE = 2;
+const ATTACK = 3;
 
 const {
     Cube,
@@ -19,9 +23,12 @@ const {
     Square,
     Subdivision_Sphere,
     Rounded_Capped_Cylinder,
+    Capped_Cylinder,
     Textured_Phong,
     Fake_Bump_Map,
     Phong_Shader,
+    Tetrahedron,
+    Cone_Tip,
     Textured_Phong_Normal_Map,
     Funny_Shader,
     Cylindrical_Tube,
@@ -29,8 +36,242 @@ const {
 
 const original_box_size = 2;
 
+
+class Enemy {
+    normalizeVector(vector) {
+        // Calculate the magnitude (length) of the vector
+        const length = Math.sqrt(vector.reduce((sum, component) => sum + component ** 2, 0));
+        
+        // Check if the length is zero to avoid division by zero
+        if (length === 0) {
+            throw new Error("Cannot normalize a zero-length vector");
+        }
+    
+        // Divide each component by the length to normalize
+        return vector.map(component => component / length);
+    }
+
+    handleCollision(min, max) {
+        const minAngle = min;  // Minimum angle in degrees
+        const maxAngle = max; // Maximum angle in degrees
+
+        // Convert angle to radians
+        const minAngleRad = minAngle * (Math.PI / 180);
+        const maxAngleRad = maxAngle * (Math.PI / 180);
+
+        // Generate a random angle within the range
+        const randomAngleRad = Math.random() * (maxAngleRad - minAngleRad) + minAngleRad;
+
+        // Determine if we should rotate clockwise or counterclockwise
+        const clockwise = Math.random() >= 0.5 ? 1 : -1;
+
+        // Calculate the new direction
+        const cosAngle = Math.cos(randomAngleRad);
+        const sinAngle = Math.sin(randomAngleRad) * clockwise;
+
+        const newDirection = vec3(
+            this.direction[0] * cosAngle - this.direction[2] * sinAngle,
+            this.direction[1],
+            this.direction[0] * sinAngle + this.direction[2] * cosAngle,
+             // Assuming no change in the z-component for simplicity
+        );
+
+        // Normalize the new direction
+        this.direction = this.normalizeVector(newDirection);
+    }
+
+    distanceBetweenPoints(point1, point2) {
+        // Ensure both points have three coordinates
+        if (point1.length !== 3 || point2.length !== 3) {
+            throw new Error("Both points must have three coordinates.");
+        }
+    
+        const dx = point2[0] - point1[0];
+        const dy = point2[1] - point1[1];
+        const dz = point2[2] - point1[2];
+    
+        // Calculate the distance using the Euclidean distance formula
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    
+        return distance;
+    }
+    
+    
+    constructor(position) {
+        this.initial = 0;
+        this.position = position;
+        this.model_transform = Mat4.identity();
+        this.moving = false; // Whether moving or at standstill
+        this.direction = vec3(1, 0, 0);
+        this.timer = 0;
+        this.reverseTimer = 0;
+        this.moveStatus = SHUFFLE;
+        this.detectRange = 1;
+        this.outRange = 20;
+        this.speed = 0.02;
+        this.shootTimer = 80;
+    }
+
+    update(dt, playerLoc, collide) {
+
+        
+        if(collide){
+            console.log("here");
+            this.handleCollision(140, 210);
+            if(this.speed == 0.02){
+                this.reverseTimer = 20;
+            }
+            else{
+                this.reverseTimer = 10;
+            }
+           
+        }
+
+        if (this.timer <= 0) {
+            
+            if(this.moveStatus == SHUFFLE){
+                //choose a random direction
+                this.handleCollision(0,360);
+                this.timer = 200;
+            }
+            else if(this.moveStatus != SHUFFLE){
+                console.log("diff");
+                let r = Math.random();
+                if(r < 0.7){
+                    this.moveStatus = ATTACK;
+                    this.timer = 80;
+                }
+                else{
+                    this.moveStatus = MOVE;
+                    this.timer = 100;
+                }
+                
+     
+            }
+
+        }
+
+        //now check if ACTIVE
+        if(this.moveStatus == SHUFFLE && this.distanceBetweenPoints(this.position, vec3(playerLoc[0],playerLoc[1],playerLoc[2])) < this.detectRange){
+           
+            this.moveStatus = MOVE;
+            this.speed = 0.04
+        }
+        else if(this.moveStatus == MOVE && this.distanceBetweenPoints(this.position, vec3(playerLoc[0],playerLoc[1],playerLoc[2])) > this.outRange){
+            
+            this.moveStatus = SHUFFLE;
+            this.speed = 0.02
+        }
+
+
+        // Update direction to point towards the playe
+        if(this.moveStatus == MOVE && this.reverseTimer == 0){
+         
+            this.direction = vec3(
+                playerLoc[0] - this.position[0], 
+                0,
+                playerLoc[2] - this.position[2]
+            );
+        }
+
+        //Handle attack
+
+        
+        let normDirection = this.normalizeVector(this.direction);
+
+        // Update position based on normalized direction and speed
+        if (this.moveStatus != ATTACK) {
+           
+
+            this.position = vec3(
+                this.position[0] + normDirection[0] * this.speed * 0.5,
+                this.position[1] + normDirection[1] * this.speed  * 0.5,
+                this.position[2] + normDirection[2] * this.speed  * 0.5
+            );
+        }
+
+        // Decrement the timer
+        this.timer -= 1;
+        if(this.reverseTimer > 0){
+            this.reverseTimer -= 1;
+        }
+        if(this.shootTimer > 0){
+            this.shootTimer -= 1;
+        }
+       
+    }
+
+
+    draw_bot(context, program_state, shapes, material2, material, time){
+        let angle = 2*Math.PI/24 * Math.sin(time/300);
+        let angleArm = 24/10 * angle;
+        if(this.moveStatus == ATTACK){
+            angle = 0;
+            angleArm = 0;
+        }
+        let model_transform = this.model_transform;
+        let spawn_position = this.position; // position of the goal chest in the game
+        model_transform = model_transform.times(Mat4.translation(...spawn_position)); // transformation for the treasure
+
+        if (this.direction[0] === 0 && this.direction[2] === 0) {
+            return 0; // Handle zero vector case (any angle is valid)
+          }
+        
+          // Calculate the angle using arctangent (atan2 for quadrant handling)
+          let rot = Math.atan2(this.direction[0], this.direction[2]);
+        
+          // Convert from radians to degrees (optional)
+        
+        model_transform = model_transform.times(Mat4.rotation(rot, 0, 1, 0));
+        // Draw head
+        let head_transform = model_transform.times(Mat4.rotation(-angleArm/6,0,1,0))
+                                            .times(Mat4.translation(0, 1.2, 0))
+                                             .times(Mat4.scale(0.4, 0.4, 0.4));
+        shapes.sphere.draw(context, program_state, head_transform, material);
+
+        // Draw body
+        let body_transform = model_transform.times(Mat4.rotation(-angleArm/6,0,1,0))
+                                            .times(Mat4.translation(0, 0, 0))
+                                            .times(Mat4.scale(0.45, 0.8, 0.55));
+        shapes.body.draw(context, program_state, body_transform, material);
+
+        // Draw left arm
+        let leftAngle = angleArm;
+        if(this.moveStatus == ATTACK){
+            leftAngle = -Math.PI/2.9;
+        }
+        let left_arm_transform = model_transform.times(Mat4.translation(0,0.6,0))
+                                                .times(Mat4.rotation(leftAngle,1,0,0))
+                                                .times(Mat4.translation(0,-0.6,0))
+                                                .times(Mat4.translation(-0.5, 0, 0.15))
+                                                .times(Mat4.scale(0.1, 0.6, 0.1));
+                                                
+        shapes.cylinder.draw(context, program_state, left_arm_transform, material);
+
+        // Draw right arm
+        let right_arm_transform = model_transform.times(Mat4.translation(0,0.6,0))
+                                                .times(Mat4.rotation(-angleArm,1,0,0))
+                                                .times(Mat4.translation(0,-0.6,0))
+                                                .times(Mat4.translation(0.5, 0, 0.15))
+                                                 .times(Mat4.scale(0.1, 0.6, 0.1));
+        shapes.cylinder.draw(context, program_state, right_arm_transform, material);
+
+        // Draw left leg
+        let left_leg_transform = model_transform.times(Mat4.rotation(angle,1,0,0))
+                                                .times(Mat4.translation(-0.24, -1.5, 0))
+                                                .times(Mat4.scale(0.14, 1, 0.2));
+        shapes.cylinder.draw(context, program_state, left_leg_transform, material);
+
+        // Draw right leg
+        let right_leg_transform = model_transform.times(Mat4.rotation(-1*angle,1,0,0))
+                                                .times(Mat4.translation(0.24, -1.5, 0))
+                                                 .times(Mat4.scale(0.14, 1, 0.2));
+        shapes.cylinder.draw(context, program_state, right_leg_transform, material);
+    }
+}
+
 class Projectile {
-    constructor(currMatrix, speed, dir) {
+    constructor(currMatrix, speed, dir, evil, pos) {
         this.initial = currMatrix;
         this.model_transform = currMatrix.times(Mat4.scale(.1, .1, .1));;
       //  this.direction = currMatrix.times(vec4(1, 0, 0, 0)).to3();
@@ -38,21 +279,34 @@ class Projectile {
         this.speed = speed;
         this.start = 30;
         this.timer = this.start;
+        this.evil = evil;
+        this.position = pos;
     }
 
     update(dt) {
        // console.log("hi");
         // Update position based on direction and speed
         this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(this.speed*dt)));
+        this.position = vec3(
+            this.position[0] + this.direction[0] * this.speed * dt,
+            this.position[1] + this.direction[1] * this.speed * dt,
+            this.position[2] + this.direction[2] * this.speed * dt
+        );
     }
 
-    render(context, program_state, material, shapes, gunMaterial, currMat) {
+    render(context, program_state, material, shapes, gunMaterial, currMat, materialEvil) {
         // Render the projectile using the capped cylinder shape
-        if(this.timer > 0){
+        if(this.timer > 0 && !this.evil){
             this.draw_gun(context, program_state, shapes, gunMaterial, currMat);
             this.timer = this.timer - 1;
         }
-        shapes.bullet.draw(context, program_state, this.model_transform, material);
+        if(!this.evil){
+            shapes.bullet.draw(context, program_state, this.model_transform, material);
+        }
+        else{
+            shapes.bullet.draw(context, program_state, this.model_transform, materialEvil);
+        }
+       
         
     }
 
@@ -79,6 +333,8 @@ class Projectile {
 }
 
 
+
+
 class Base_Scene extends Scene {
     /**
      *  **Base_scene** is a Scene that can be added to any display canvas.
@@ -96,10 +352,16 @@ class Base_Scene extends Scene {
             'sphere': new Subdivision_Sphere(6),
             'chest': new Cube(),
             'bullet': new Rounded_Capped_Cylinder(150, 50),
-            'rectangle': new Cylindrical_Tube(4, 80),
+            'rectangle': new Cylindrical_Tube(40, 80),
+            'cylinder': new Cube(),
+            'body': new Capped_Cylinder(10, 10),
+
+
 
 
         };
+
+       
 
         // *** Materials
         // define the materials to be used for different objects. Each material is created with specific shader properties and textures
@@ -136,12 +398,31 @@ class Base_Scene extends Scene {
                 texture: new Texture("./assets/chest.jpg")
             }),
             bullet: new Material(new Textured_Phong(),{
-            
+                texture: new Texture("./assets/weapon.jpg")
             }),
+            bulletEvil:new Material(new Phong_Shader,
+                {
+                    ambient: 1, diffusivity: 0.5, color: hex_color("#FF0000")
+                }),
             gun: new Material(new Textured_Phong(),{
                 ambient: 1, diffusivity: 0.8, specularity: 0,
                 texture: new Texture("./assets/weapon.jpg"),
             }),
+            robFace: new Material(new Textured_Phong(),{
+                ambient: 1, diffusivity: 0.8, specularity: 0,
+                texture: new Texture("./assets/univ1.jpg", "NEAREST"),
+            }),
+            bug: new Material(new Textured_Phong(),{
+                color: hex_color("000000"),
+                ambient: 1, specularity: 0,
+                texture: new Texture("./assets/fire2.jpg", "NEAREST"),
+            }),
+            univ: new Material(new Textured_Phong(),{
+                color: hex_color("000000"),
+                ambient: 1, specularity: 0,
+                texture: new Texture("./assets/stars.png", "NEAREST"),
+            }),
+
 
 
         };
@@ -185,6 +466,8 @@ class Base_Scene extends Scene {
     }
 }
 
+
+
 export class Maze extends Base_Scene {
     /**
      * This Scene object can be added to any display canvas.
@@ -214,6 +497,7 @@ export class Maze extends Base_Scene {
         this.map_plane = res // stores projected 2d coords of maze walls
         this.proj = null;
         this.projList = [];
+        this.enemyList = [];
         this.freeze = false;
         this.projDelay = 0;
         
@@ -250,6 +534,32 @@ export class Maze extends Base_Scene {
         for (let offset of offsets) {
             res.push(
                 vec(person_location[0] + offset[0], -person_location[2] - offset[1])
+            )
+        }
+        return res
+    }
+
+    get_enemy_box_tips(hypothetic_enemy_position) {
+        const enemy_location = hypothetic_enemy_position ? hypothetic_enemy_position : hypothetic_enemy_position; // Uses the hypothetical position
+        const base = 0.2; // defines half the size of the person's bounding box
+        const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
+        let res = []; // add offsets to the person's location to compute the bounding box tips
+        for (let offset of offsets) {
+            res.push(
+                vec(enemy_location[0] + offset[0], -enemy_location[2] - offset[1])
+            )
+        }
+        return res
+    }
+
+    get_bullet_box_tips(hypothetic_bullet_position) {
+        const bullet_location = hypothetic_bullet_position;
+        const base = 0.2; // defines half the size of the person's bounding box
+        const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
+        let res = []; // add offsets to the person's location to compute the bounding box tips
+        for (let offset of offsets) {
+            res.push(
+                vec(bullet_location[0] + offset[0], -bullet_location[2] - offset[1])
             )
         }
         return res
@@ -339,7 +649,13 @@ export class Maze extends Base_Scene {
             
             
         ]
+
+    
+
+
     }
+
+    
 
 
 
@@ -357,143 +673,44 @@ export class Maze extends Base_Scene {
         return true
     }
 
+    check_bullet_collision(bullet, person){ //for both enemies, people
+        let bullet_loc = bullet.position;
+        let person_loc;
+        let boxPos;
+        if(person instanceof Enemy){
+            person_loc = person.position;
+            boxPos = this.get_enemy_box_tips(person_loc);
+        }
+        else{
+            person_loc = vec3(this.person_location[0],this.person_location[1],this.person_location[2]);
+            boxPos = this.get_person_box_tips(this.person_location);
+        }
+        let boxBullet = this.get_bullet_box_tips(bullet_loc);
+        return this.box_collide_2d(boxBullet, boxPos);
+
+
+        
+
+
+    }  
+
     // check if the player's new position collides with any wall in the maze
     check_person_colliding_wall(new_person_location_tips) { // take in the projected 2D coordinates of the player's new position
+        //console.log("hhhh");
         for (let i = 0; i < this.map_plane.length; i++) { // iterates through each projected wall in the map_plane
             const cur_square = this.map_plane[i];
             if (this.box_collide_2d(
                 cur_square,
                 new_person_location_tips // box_collide_2d to check if the player's new position collides with the current wall
             )) {
+
                 return false; // If a collision is detected with any wall, returns false
             }
         }
         return true;
     }
 
-    // creating the control panel for the maze game
 
-    /*
-    make_control_panel() {
-        
-        this.key_triggered_button("Rotate Left", ["l"], () => {
-            this.look_at_direction = Mat4.rotation(Math.PI / 16, 0, 1, 0)
-                .times(this.look_at_direction);
-            this.person_transformation =
-                Mat4.translation(
-                    this.person_location[0],
-                    this.person_location[1],
-                    this.person_location[2]
-                )
-                    .times(Mat4.rotation(Math.PI / 16, 0, 1, 0))
-                    .times(Mat4.translation(
-                        -1 * this.person_location[0],
-                        -1 * this.person_location[1],
-                        -1 * this.person_location[2]
-                    )).times(this.person_transformation);
-            this.camera_transformation =
-                this.camera_transformation.times(
-                    Mat4.translation(
-                        this.person_location[0],
-                        this.person_location[1],
-                        this.person_location[2]
-                    )
-                        .times(Mat4.rotation(-Math.PI / 16, 0, 1, 0))
-                        .times(Mat4.translation(
-                            -1 * this.person_location[0],
-                            -1 * this.person_location[1],
-                            -1 * this.person_location[2]
-                        )));
-        });
-
-        this.key_triggered_button("Rotate Right", ["j"], () => {
-            this.look_at_direction = Mat4.rotation(-Math.PI / 16, 0, 1, 0)
-                .times(this.look_at_direction);
-            this.person_transformation =
-                Mat4.translation(
-                    this.person_location[0],
-                    this.person_location[1],
-                    this.person_location[2]
-                )
-                    .times(Mat4.rotation(-Math.PI / 16, 0, 1, 0))
-                    .times(Mat4.translation(
-                        -1 * this.person_location[0],
-                        -1 * this.person_location[1],
-                        -1 * this.person_location[2]
-                    )).times(this.person_transformation);
-            this.camera_transformation =
-                this.camera_transformation.times(
-                    Mat4.translation(
-                        this.person_location[0],
-                        this.person_location[1],
-                        this.person_location[2]
-                    )
-                        .times(Mat4.rotation(Math.PI / 16, 0, 1, 0))
-                        .times(Mat4.translation(
-                            -1 * this.person_location[0],
-                            -1 * this.person_location[1],
-                            -1 * this.person_location[2]
-                        )));
-        });
-
-        this.key_triggered_button("Move", ["i"], () => {
-            const scaled_look_at_direction = this.look_at_direction.times(0.12) // scaled by a factor of 0.12 to control the speed of movement
-            const new_person_transformation =
-                Mat4.translation( // update the tf matrix for the player by translating it in the direction of scaled_look_at_direction
-                    scaled_look_at_direction[0],
-                    scaled_look_at_direction[1],
-                    scaled_look_at_direction[2]
-                ).times(this.person_transformation);
-            const new_camera_transformation = this.camera_transformation.times(Mat4.translation(
-                -1 * scaled_look_at_direction[0], // update camera by translating it in the opposite direction of scaled_look_at_direction, effectively moving the camera with the player
-                -1 * scaled_look_at_direction[1],
-                -1 * scaled_look_at_direction[2]
-            ));
-            const new_person_location = this.person_location.plus(scaled_look_at_direction); // calculates the new position of the player character
-            let ok = true;
-            const new_person_location_tips = this.get_person_box_tips(new_person_location);
-
-            ok = ok && this.check_person_colliding_wall(new_person_location_tips); // check if the new position collides with any walls
-            ok = ok && this.check_winning_condition(new_person_location_tips); // check if the new position satisfies the winning condition 
-
-            if (ok) { // If both collision and winning condition checks pass, update the player's tf, camera tf, and location to the new values
-                this.person_transformation = new_person_transformation;
-                this.camera_transformation = new_camera_transformation;
-                this.person_location = new_person_location;
-            }
-
-        });
-
-        this.key_triggered_button("Back", ["k"], () => {
-            const scaled_look_at_direction = this.look_at_direction.times(0.12)
-            const new_person_transformation =
-                Mat4.translation(
-                    -1 * scaled_look_at_direction[0],
-                    -1 * scaled_look_at_direction[1],
-                    -1 * scaled_look_at_direction[2]
-                ).times(this.person_transformation);
-            const new_camera_transformation = this.camera_transformation.times(Mat4.translation(
-                scaled_look_at_direction[0],
-                scaled_look_at_direction[1],
-                scaled_look_at_direction[2]
-            ));
-            const new_person_location = this.person_location.plus(scaled_look_at_direction.times(-1));
-            let ok = true;
-            const new_person_location_tips = this.get_person_box_tips(new_person_location);
-
-
-            ok = ok && this.check_person_colliding_wall(new_person_location_tips);
-            ok = ok && this.check_winning_condition(new_person_location_tips);
-
-            if (ok) {
-                this.person_transformation = new_person_transformation;
-                this.camera_transformation = new_camera_transformation;
-                this.person_location = new_person_location;
-            }
-        });
-
-        
-    } */
 
     // draw walls at the specified position (x, y, z) in the scene
     draw_box(context, program_state, model_transform, x, y, z) {
@@ -615,7 +832,7 @@ export class Maze extends Base_Scene {
             const z = -original_box_size * this.box_coord[i][2];
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z); // call draw_box function to obtain the model transformation for the current box
             this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall : this.materials.pure); // draw a cube representing a wall using the shapes.cube object
-
+            
         }
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
         this.init_crosshair_canvas();
@@ -636,10 +853,30 @@ export class Maze extends Base_Scene {
             this.proj_transf = Mat4.identity().times(Mat4.translation(this.person_location[0],this.person_location[1],this.person_location[2]));
             //this.proj_transf = Mat4.identity().times(Mat4.translation(this.camPosition[0],this.camPosition[1],this.camPosition[2]));
             let dirVec = this.lookatpoint.minus(vec3(this.person_location[0],this.person_location[1],this.person_location[2]));
-            const proj = new Projectile(this.proj_transf, 8, dirVec);
+            const proj = new Projectile(this.proj_transf, 8, dirVec, false, this.person_location);
             this.projList.push(proj);
             this.projDelay = 20;
         }
+
+       
+        
+    }
+
+    spawn_enemy_projectile(e){
+
+        this.proj_transf = Mat4.identity().times(Mat4.translation(e.position[0],e.position[1],e.position[2]));
+        let playerLoc = this.person_location;
+        let dir = vec3(
+            playerLoc[0] - e.position[0], 
+            0,
+            playerLoc[2] - e.position[2]
+        );
+
+        let dirVec = dir;
+        const proj = new Projectile(this.proj_transf, 8, dirVec, true, e.position);
+        this.projList.push(proj);
+          
+        
 
        
         
@@ -726,7 +963,7 @@ export class Maze extends Base_Scene {
         super.display(context, program_state);
 
         const t = program_state.animation_time;
-       // console.log("t : " + t);
+       
        // console.log("tick is " + this.tick)
         let x = 0;
       //  console.log(x);
@@ -795,6 +1032,45 @@ export class Maze extends Base_Scene {
 
         this.draw_person(context, program_state);
         this.draw_chest(context, program_state);
+
+        if(t == 0){
+            let e = new Enemy(vec3(2+15,1,-2));
+            this.enemyList.push(e);
+        }
+
+        for(let e of this.enemyList){
+           // console.log(this.person_location);
+            let noCollide = true;
+            let enemyPos = this.get_enemy_box_tips(e.position);
+            if(this.check_person_colliding_wall(enemyPos)){
+                //console.log("oh no");
+                noCollide = false;
+            }
+            if(e.moveStatus == ATTACK){
+                let r = Math.random();
+                if(r < 1 && e.shootTimer == 0){
+                    e.shootTimer = 80;
+                    this.spawn_enemy_projectile(e);
+                }
+            }
+            e.update(dt, this.person_location, noCollide);
+            e.draw_bot(context, program_state, this.shapes, this.materials.chest, this.materials.bug, program_state.animation_time);
+
+        }
+
+        for(let e of this.enemyList){
+            for(let p of this.projList){
+                if(!p.evil && this.check_bullet_collision(p, e)){
+                    console.log("Ouch.");
+                }
+            }
+        }
+
+        
+        
+
+
+
         if(this.projList.length != 0){
             //console.log("Should be showing...");
             let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
@@ -807,7 +1083,7 @@ export class Maze extends Base_Scene {
             for (let p of this.projList) {
                 let temp = Mat4.translation(0.3,0,0).times(this.matrix());
                // temp = program_state.camera_inverse;
-                p.render(context, program_state, this.materials.bullet, this.shapes, this.materials.gun, temp);
+                p.render(context, program_state, this.materials.bullet, this.shapes, this.materials.gun, temp, this.materials.bulletEvil);
                 
                 
             }
@@ -1102,6 +1378,7 @@ export class Maze extends Base_Scene {
         const new_person_location_tips = this.get_person_box_tips(new_player_loc);
 
         let ok = true;
+
         ok = ok && this.check_person_colliding_wall(new_person_location_tips);
         if(!ok){
             //this.matrix().post_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
