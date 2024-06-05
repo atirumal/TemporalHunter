@@ -392,14 +392,14 @@ class Base_Scene extends Scene {
             wall: new Material(new Textured_Phong_Normal_Map(),
                 {
                     ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#FFFFFF"),
-                    texture: new Texture("./assets/whitewall.jpg"),
-                    normal: new Texture("./assets/whitewall.jpg")
+                    texture: new Texture("./assets/brickwall.jpg"),
+                    normal: new Texture("./assets/brickwall_normal.jpg")
                 }),
             floor: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
                     ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
                     color: hex_color("#aaaaaa"),
-                    color_texture: new Texture("./assets/whitewall.jpg"),
+                    color_texture: new Texture("./assets/brickwall.jpg"),
                     light_depth_texture: null
                 }),
             person: new Material(new Phong_Shader,
