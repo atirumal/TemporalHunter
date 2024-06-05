@@ -596,12 +596,9 @@ export class Maze extends Base_Scene {
         // Initialization
         this.smokeOrigin = vec3(15, 0.8, -2);
         this.particleSystem = new ParticleSystem(this.smokeOrigin, 10);
-<<<<<<< HEAD
         this.grenadeList = []
-=======
         this.enemyKill = vec3(15,1,1);
         this.enemyParticleSystem;
->>>>>>> 289db4008ff773458e84ba04fc8a90e27c6d18b7
     }
 
     // generates a list of 2D vectors representing the corners of a square centered around a given base value
@@ -1308,7 +1305,6 @@ export class Maze extends Base_Scene {
       //  this.particleSystem.update(program_state.animation_delta_time / 1000);
 
         // Render the particle system
-<<<<<<< HEAD
         this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
         
         this.grenadeList.forEach(grenade => {
@@ -1320,7 +1316,6 @@ export class Maze extends Base_Scene {
 // In your game loop update and render methods:
 
 //    
-=======
       //  this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
 
         if(this.enemyParticleSystem != null){
@@ -1331,7 +1326,6 @@ export class Maze extends Base_Scene {
             this.enemyParticleSystem.render(context, program_state, this.shapes, this.materials.light_src);
         }
        
->>>>>>> 289db4008ff773458e84ba04fc8a90e27c6d18b7
         this.tick = this.tick + 1;
         this.draw_crosshair();
     }
