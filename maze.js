@@ -141,13 +141,13 @@ class Enemy {
             else if(this.moveStatus != SHUFFLE){
                 console.log("diff");
                 let r = Math.random();
-                if(r < 0.4){
+                if(r < 0.45){
                     this.moveStatus = ATTACK;
                     this.timer = 80;
                 }
-                else if(r < 0.75){
+                else if(r < 0.7){
                     this.moveStatus = CHARGE;
-                    this.timer = 45;
+                    this.timer = 40;
                     this.speed = 0.18;
                 }
                 else{
@@ -975,6 +975,50 @@ export class Maze extends Base_Scene {
         
     }
 
+    normalizeVector(vector) {
+        // Calculate the magnitude (length) of the vector
+        const length = Math.sqrt(vector.reduce((sum, component) => sum + component ** 2, 0));
+        
+        // Check if the length is zero to avoid division by zero
+        if (length === 0) {
+            throw new Error("Cannot normalize a zero-length vector");
+        }
+    
+        // Divide each component by the length to normalize
+        return vector.map(component => component / length);
+    }
+
+    shift(vec, min, max) {
+        const scale = Math.sqrt(vec.reduce((sum, component) => sum + component ** 2, 0));
+
+        const minAngle = min;  
+        const maxAngle = max; 
+
+       
+        const minAngleRad = minAngle * (Math.PI / 180);
+        const maxAngleRad = maxAngle * (Math.PI / 180);
+
+       
+        const randomAngleRad = Math.random() * (maxAngleRad - minAngleRad) + minAngleRad;
+
+      
+        const clockwise = Math.random() >= 0.5 ? 1 : -1;
+
+        // Calculate the new direction
+        const cosAngle = Math.cos(randomAngleRad);
+        const sinAngle = Math.sin(randomAngleRad) * clockwise;
+
+        let newDirection = vec3(
+            vec[0] * cosAngle - vec[2] * sinAngle,
+            vec[1],
+            vec[0] * sinAngle + vec[2] * cosAngle,
+             // Assuming no change in the z-component for simplicity
+        );
+        newDirection = this.normalizeVector(newDirection);
+        return vec3(newDirection[0]*scale, newDirection[1]*scale,newDirection[2]*scale);
+       
+    }
+
     spawn_enemy_projectile(e){
 
         this.proj_transf = Mat4.identity().times(Mat4.translation(e.position[0],e.position[1],e.position[2]));
@@ -985,7 +1029,8 @@ export class Maze extends Base_Scene {
             playerLoc[2] - e.position[2]
         );
 
-        let dirVec = dir;
+        let dirVec = this.shift(dir,-6,6);
+
         const proj = new Projectile(this.proj_transf, 8, dirVec, true, e.position);
         this.projList.push(proj);
           
@@ -1147,8 +1192,11 @@ export class Maze extends Base_Scene {
         this.draw_chest(context, program_state);
 
         if(t == 0){
-            let e = new Enemy(vec3(2+15,1,-2));
-            this.enemyList.push(e);
+            let e1 = new Enemy(vec3(2+15,1,-2));
+            this.enemyList.push(e1);
+            let e2 = new Enemy(vec3(11.1,0.8,-13.4));
+            this.enemyList.push(e2);
+
         }
 
         for(let e of this.enemyList){
