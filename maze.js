@@ -386,7 +386,7 @@ class Base_Scene extends Scene {
                     ambient: 1, diffusivity: 0.5, color: hex_color("#FFFFFF")
                 }),
             light_src: new Material(new Phong_Shader(), {
-                color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
+                color: color(1, 1, 1, 0.3), ambient: 1, diffusivity: 0, specularity: 0
             }),
             pure: new Material(new Color_Phong_Shader(), {}),
             depth_tex: new Material(new Depth_Texture_Shader_2D(), {
@@ -514,6 +514,9 @@ export class Maze extends Base_Scene {
         this.will_take_over_graphics_state = true;
 
         this.jumpBool = false;
+        // Initialization
+        this.smokeOrigin = vec3(15, 0.8, -2);
+        this.particleSystem = new ParticleSystem(this.smokeOrigin, 10);
     }
 
     // generates a list of 2D vectors representing the corners of a square centered around a given base value
@@ -1095,7 +1098,17 @@ export class Maze extends Base_Scene {
             
             //this.proj.render(context, program_state, this.materials.bullet, this.shapes);
         }
-        
+
+
+
+        // Emit new particles
+        this.particleSystem.emitParticle();
+
+        // Update the particle system
+        this.particleSystem.update(program_state.animation_delta_time / 1000);
+
+        // Render the particle system
+        this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
 
         this.tick = this.tick + 1;
         this.draw_crosshair();
@@ -1212,8 +1225,8 @@ export class Maze extends Base_Scene {
         // make_control_panel(): Sets up a panel of interactive HTML elements, including
         // buttons with key bindings for affecting this scene, and live info readouts.
         this.control_panel.innerHTML += "Click and drag the scene to spin your viewpoint around it.<br>";
-        this.live_string(box => box.textContent = "- Position: " + this.pos[0].toFixed(2) + ", " + this.pos[1].toFixed(2)
-            + ", " + this.pos[2].toFixed(2));
+        this.live_string(box => box.textContent = "- Positione: " + this.camPosition[0].toFixed(2) + ", " + this.camPosition[1].toFixed(2)
+            + ", " + this.camPosition[2].toFixed(2));
         this.new_line();
         // The facing directions are surprisingly affected by the left hand rule:
         this.live_string(box => box.textContent = "- Facing: " + ((this.z_axis[0] > 0 ? "West " : "East ")
@@ -1228,6 +1241,7 @@ export class Maze extends Base_Scene {
                 this.down = false;
                 this.top = this.camPosition[1] + 5;
                 this.endHeight = this.camPosition[1];   
+                this.endHeightl = this.lookatpoint[1];
             }
         });        
         this.key_triggered_button("Forward", ["w"], () => this.thrust[2] = 0.1, undefined, () => this.thrust[2] = 0);
@@ -1371,21 +1385,19 @@ export class Maze extends Base_Scene {
             if(this.jumpTime == 0){
                 this.jumpTime = program_state.animation_time / 1000;
             }
-            console.log(this.jumpTime);
             let t = program_state.animation_time / 1000;
             t -= this.jumpTime;
             let initial_velocity = 7;
             let down = (0.5 * -19.8 * (Math.pow(t, 2)));
             let vale = this.endHeight + (initial_velocity * t) + down;
+            let valel = this.endHeightl + (initial_velocity * t) + down;
             this.camPosition[1] = vale;
-            this.lookatpoint[1] = vale;
+            this.lookatpoint[1] = valel;
             
-            console.log(vale);
 
             if(this.camPosition[1] <= this.endHeight && (t!= 0)){
-                console.log("here ");
                 this.camPosition[1] = this.endHeight;
-                this.lookatpoint[1] = this.endHeight;
+                this.lookatpoint[1] = this.endHeightl;
                 this.jumpBool = false;
                 this.down = false;
                 this.jumpTime = 0;
@@ -1452,3 +1464,77 @@ export class Maze extends Base_Scene {
         this.inverse().pre_multiply(Mat4.translation(0, 0, -25));
     }
 }
+
+class Particle {
+    constructor(position, velocity, lifespan) {
+        this.position = position.copy();
+        this.velocity = velocity;
+        this.lifespan = lifespan;
+        this.age = 0;
+    }
+
+    update(dt) {
+        // Update particle position based on velocity
+        //this.position[1] = this.position[1] + (this.velocity.times(dt));
+        this.position[1] = this.position[1] + dt * this.velocity[1];
+        // Update particle age
+        this.age += dt;
+        
+    }
+
+    isAlive() {
+        return this.age < this.lifespan;
+    }
+
+    render(context, program_state, shapes, material) {
+        // Render the particle (using a simple sphere or point for demonstration)
+        let model_transform = Mat4.translation(...this.position);
+        model_transform = model_transform.times(Mat4.scale(0.2,0.2,0.2));
+        // Adjust size based on age (optional)
+        const size = 1.0 - (this.age / this.lifespan);
+        const scaled_transform = model_transform.times(Mat4.scale(size, size, size));
+       
+        // Assuming there's a draw_sphere function available for rendering
+        shapes.sphere.draw(context, program_state, scaled_transform, material); //Color.of(0.5, 0.5, 0.5, 1.0 - this.age / this.lifespan
+    }
+}
+
+class ParticleSystem {
+    constructor(origin, timer) {
+        this.age = 0;
+        this.timer = timer;
+        this.origin = origin;
+        this.particles = [];
+        this.active = true;
+    }
+
+    emitParticle() {
+        if(!this.active){
+            return;
+        }
+        // Create a new particle with random velocity and lifespan
+        const velocity = vec3(Math.random() - 0.5, 2*Math.random() + 0.5, Math.random() - 0.5);
+        const randomPos = vec3(2 * Math.random() - 1, 0, 2 * Math.random() - 2);
+        const lifespan = Math.random() * 10 + 1; 
+        const particle = new Particle(this.origin.copy().plus(randomPos), velocity, lifespan);
+        this.particles.push(particle);
+    }
+
+    update(dt) {
+        // Update all particles
+        this.particles.forEach(particle => particle.update(dt));
+        // Remove dead particles
+        this.particles = this.particles.filter(particle => particle.isAlive());
+        this.age += dt;
+        if(this.age > this.timer){
+            this.active = false;
+        }
+    }
+
+    render(context, program_state, shapes, material) {
+        // Render all particles
+        this.particles.forEach(particle => particle.render(context, program_state, shapes, material));
+    }
+}
+
+
