@@ -228,6 +228,8 @@ export class Maze extends Base_Scene {
 
         this.mouse_enabled_canvases = new Set();
         this.will_take_over_graphics_state = true;
+
+        this.jumpBool = false;
     }
 
     // generates a list of 2D vectors representing the corners of a square centered around a given base value
@@ -716,7 +718,7 @@ export class Maze extends Base_Scene {
     let oldMatrix = this.matrix();
     //let oldInvMatrix = this.inverse();
     // Move in first-person.  Scale the normal camera aiming speed by dt for smoothness:
-    this.first_person_flyaround(dt * r, dt * m);
+    this.first_person_flyaround(dt * r, dt * m, program_state);
     // Also apply third-person "arcball" camera mode if a mouse drag is occurring:
     if (this.mouse.anchor)
         this.third_person_arcball(dt * r);
@@ -943,7 +945,15 @@ export class Maze extends Base_Scene {
         this.new_line();
         this.new_line();
 
-        this.key_triggered_button("Up", [" "], () => this.thrust[1] = -1, undefined, () => this.thrust[1] = 0);
+        this.key_triggered_button("Up", [" "], () => {
+            if(!this.jumpBool){
+                this.jumpBool = true;
+                this.jumpTime = 0;
+                this.down = false;
+                this.top = this.camPosition[1] + 5;
+                this.endHeight = this.camPosition[1];   
+            }
+        });        
         this.key_triggered_button("Forward", ["w"], () => this.thrust[2] = 0.1, undefined, () => this.thrust[2] = 0);
         this.new_line();
         this.key_triggered_button("Left", ["a"], () => this.thrust[0] = 0.1, undefined, () => this.thrust[0] = 0);
@@ -999,7 +1009,7 @@ export class Maze extends Base_Scene {
         this.new_line();
     }
 
-    first_person_flyaround(radians_per_frame, meters_per_frame, leeway = 0) {
+    first_person_flyaround(radians_per_frame, meters_per_frame, program_state, leeway = 0) {
         // (Internal helper function)
         // Compare mouse's location to all four corners of a dead box:
         const offsets_from_dead_box = {
@@ -1080,6 +1090,33 @@ export class Maze extends Base_Scene {
             0,
             perpendicularDirection[2] * this.thrust[0]
         ];
+
+        if(this.jumpBool){
+            if(this.jumpTime == 0){
+                this.jumpTime = program_state.animation_time / 1000;
+            }
+            console.log(this.jumpTime);
+            let t = program_state.animation_time / 1000;
+            t -= this.jumpTime;
+            let initial_velocity = 7;
+            let down = (0.5 * -19.8 * (Math.pow(t, 2)));
+            let vale = this.endHeight + (initial_velocity * t) + down;
+            this.camPosition[1] = vale;
+            this.lookatpoint[1] = vale;
+            
+            console.log(vale);
+
+            if(this.camPosition[1] <= this.endHeight && (t!= 0)){
+                console.log("here ");
+                this.camPosition[1] = this.endHeight;
+                this.lookatpoint[1] = this.endHeight;
+                this.jumpBool = false;
+                this.down = false;
+                this.jumpTime = 0;
+            }
+            
+
+        }
 
         // Update the camera position and lookat point with both forward and side movement
         this.camPosition[0] += forwardMovement[0] - sideMovement[0];
