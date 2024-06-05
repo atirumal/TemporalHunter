@@ -707,19 +707,8 @@ export class Maze extends Base_Scene {
 
             [1, 0, 14], [2, 0, 14], [3, 0, 14], [4, 0, 14], [5, 0, 14], [6, 0, 14], [7, 0, 14], 
             [8, 0, 14], [9, 0, 14], [10, 0, 14], [11, 0, 14], [12, 0, 14], [13, 0, 14], [14, 0, 14], [15, 0, 14], [16, 0, 14], [17, 0, 14], [18, 0, 14], [19, 0, 14], [20, 0, 14],
-            [20, 0, 12], [20, 0, 11], [20, 0, 10], [20, 0, 9], [20, 0, 8], [20, 0, 5], [20, 0, 6], [20, 0, 7], [20, 0, 8], [20, 0, 9], [20, 0, 4], [20, 0, 3], [20, 0, 2], [20, 0, 1], [20, 0, 13]
-
-           
-            
-            
-            
-            
-            
+            [20, 0, 12], [20, 0, 11], [20, 0, 10], [20, 0, 9], [20, 0, 8], [20, 0, 5], [20, 0, 6], [20, 0, 7], [20, 0, 8], [20, 0, 9], [20, 0, 4], [20, 0, 3], [20, 0, 2], [20, 0, 1], [20, 0, 13] 
         ]
-
-    
-
-
     }
 
     
@@ -936,7 +925,7 @@ export class Maze extends Base_Scene {
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z); // call draw_box function to obtain the model transformation for the current box
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall : this.materials.pure); // draw a cube representing a wall using the shapes.cube object
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.floor : this.materials.pure); // draw a cube representing a wall using the shapes.cube object
             
         }
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
