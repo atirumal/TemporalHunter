@@ -106,7 +106,7 @@ class Enemy {
         this.timer = 0;
         this.reverseTimer = 0;
         this.moveStatus = SHUFFLE;
-        this.detectRange = 30;
+        this.detectRange = 1; // change back to 30
         this.outRange = 20;
         this.speed = 0.02;
         this.shootTimer = 80;
@@ -300,6 +300,8 @@ class Projectile {
         this.timer = this.start;
         this.evil = evil;
         this.position = pos;
+        this.lifeTime = 10;
+        this.isAlive = true;
     }
 
     getTranslation(matrix) {
@@ -308,11 +310,17 @@ class Projectile {
     }
 
     update(dt) {
+        if(this.lifeTime <= 0){
+            this.isAlive = false;
+            return;
+        }
+        this.lifeTime -= dt;
        // console.log("hi");
         // Update position based on direction and speed
         this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(this.speed*dt)));
         //this.position = this.getTranslation(this.model_transform);
        // console.log(this.position);
+       
     }
 
     render(context, program_state, material, shapes, gunMaterial, currMat, materialEvil) {
@@ -1163,6 +1171,7 @@ export class Maze extends Base_Scene {
         }
 
         for(let e of this.enemyList){
+            this.projList = this.projList.filter(p => p.isAlive);
             for(let p of this.projList){
                 if(!p.evil && this.check_bullet_collision(p, e) && e.cooldownTimer == 0){
                     console.log("Ouch.");
