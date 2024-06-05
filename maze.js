@@ -106,10 +106,13 @@ class Enemy {
         this.timer = 0;
         this.reverseTimer = 0;
         this.moveStatus = SHUFFLE;
-        this.detectRange = 1;
+        this.detectRange = 30;
         this.outRange = 20;
         this.speed = 0.02;
         this.shootTimer = 80;
+        this.health = 5;
+        this.damageTimer = 0;
+        this.cooldownTimer = 0;
     }
 
     update(dt, playerLoc, collide) {
@@ -198,16 +201,31 @@ class Enemy {
         if(this.shootTimer > 0){
             this.shootTimer -= 1;
         }
+        if(this.damageTimer > 0){
+            this.damageTimer -= 1;
+        }
+        if(this.cooldownTimer > 0){
+            this.cooldownTimer -= 1;
+        }
        
     }
 
 
     draw_bot(context, program_state, shapes, material2, material, time){
+        //material.shader.activate(context);
+       // material.shader.update_GPU(context, program_state, model_transform, material);
+
+      //  const healthLocation = material.shader.gl.getUniformLocation(material.shader.program, 'u_health');
+       // material.shader.gl.uniform1f(healthLocation, this.health);
+
         let angle = 2*Math.PI/24 * Math.sin(time/300);
         let angleArm = 24/10 * angle;
         if(this.moveStatus == ATTACK){
             angle = 0;
             angleArm = 0;
+        }
+        if(this.damageTimer > 0){
+            material = material2;
         }
         let model_transform = this.model_transform;
         let spawn_position = this.position; // position of the goal chest in the game
@@ -271,6 +289,7 @@ class Enemy {
 }
 
 class Projectile {
+
     constructor(currMatrix, speed, dir, evil, pos) {
         this.initial = currMatrix;
         this.model_transform = currMatrix.times(Mat4.scale(.1, .1, .1));;
@@ -283,15 +302,17 @@ class Projectile {
         this.position = pos;
     }
 
+    getTranslation(matrix) {
+        return vec3(matrix[0][3], matrix[1][3], matrix[2][3]);
+
+    }
+
     update(dt) {
        // console.log("hi");
         // Update position based on direction and speed
         this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(this.speed*dt)));
-        this.position = vec3(
-            this.position[0] + this.direction[0] * this.speed * dt,
-            this.position[1] + this.direction[1] * this.speed * dt,
-            this.position[2] + this.direction[2] * this.speed * dt
-        );
+        //this.position = this.getTranslation(this.model_transform);
+       // console.log(this.position);
     }
 
     render(context, program_state, material, shapes, gunMaterial, currMat, materialEvil) {
@@ -412,16 +433,49 @@ class Base_Scene extends Scene {
                 ambient: 1, diffusivity: 0.8, specularity: 0,
                 texture: new Texture("./assets/univ1.jpg", "NEAREST"),
             }),
-            bug: new Material(new Textured_Phong(),{
-                color: hex_color("000000"),
-                ambient: 1, specularity: 0,
-                texture: new Texture("./assets/fire2.jpg", "NEAREST"),
+            bug: new Material(new Textured_Phong(), {
+                ambient: 1,
+                diffusivity: 0.5,
+                specularity: 0,
+                texture: new Texture("./assets/fire2.jpg")
             }),
+            bug2: new Material(new Textured_Phong(), {
+                ambient: 1,
+                diffusivity: 0.5,
+                specularity: 0,
+                texture: new Texture("./assets/fire3.jpg")
+            }),
+            bug35: new Material(new Textured_Phong(), {
+                ambient: 1,
+                diffusivity: 0.5,
+                specularity: 0,
+                texture: new Texture("./assets/fire35.jpg")
+            }),
+            bug3: new Material(new Textured_Phong(), {
+                ambient: 1,
+                diffusivity: 0.5,
+                specularity: 0,
+                texture: new Texture("./assets/fire4.jpg")
+            }),
+            bug4: new Material(new Textured_Phong(), {
+                ambient: 1,
+                diffusivity: 0.5,
+                specularity: 0,
+                texture: new Texture("./assets/fire5.jpg")
+            }),
+
             univ: new Material(new Textured_Phong(),{
                 color: hex_color("000000"),
                 ambient: 1, specularity: 0,
                 texture: new Texture("./assets/stars.png", "NEAREST"),
             }),
+            red: new Material(new Phong_Shader,{
+                color: color(1,0,0,1),
+                ambient: 0.5,
+                diffusivity: 0.5,
+                specularity: 0.5
+            }),
+
 
 
 
@@ -559,7 +613,7 @@ export class Maze extends Base_Scene {
 
     get_bullet_box_tips(hypothetic_bullet_position) {
         const bullet_location = hypothetic_bullet_position;
-        const base = 0.2; // defines half the size of the person's bounding box
+        const base = 0.1; // defines half the size of the person's bounding box
         const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
         let res = []; // add offsets to the person's location to compute the bounding box tips
         for (let offset of offsets) {
@@ -679,19 +733,57 @@ export class Maze extends Base_Scene {
     }
 
     check_bullet_collision(bullet, person){ //for both enemies, people
-        let bullet_loc = bullet.position;
+        let bullet_loc = bullet.getTranslation(bullet.model_transform);
+
         let person_loc;
         let boxPos;
         if(person instanceof Enemy){
+           // console.log("Yep");
             person_loc = person.position;
-            boxPos = this.get_enemy_box_tips(person_loc);
+           
         }
         else{
             person_loc = vec3(this.person_location[0],this.person_location[1],this.person_location[2]);
-            boxPos = this.get_person_box_tips(this.person_location);
+
         }
+
+       
+
+        //
+        let dist = Math.pow(person_loc[0]-bullet_loc[0],2)
+        +  Math.pow(person_loc[2]-bullet_loc[2],2);
+
+        let ycheck = Math.pow(person_loc[1] - bullet_loc[1],2);
+        return (dist < 0.7) && (ycheck < 3.4);
+
+
+
+
+
         let boxBullet = this.get_bullet_box_tips(bullet_loc);
         return this.box_collide_2d(boxBullet, boxPos);
+
+
+        
+
+
+    }  
+
+    check_bad_bullet_collision(bullet, person){ //for both enemies, people
+        let bullet_loc = bullet.getTranslation(bullet.model_transform);
+
+        let person_loc;
+        let boxPos;
+
+        person_loc = vec3(this.person_location[0],this.person_location[1],this.person_location[2]);
+
+        let dist = Math.pow(person_loc[0]-bullet_loc[0],2)
+        +  Math.pow(person_loc[2]-bullet_loc[2],2);
+
+        let ycheck = Math.pow(person_loc[1] - bullet_loc[1],2);
+        return (dist < 0.3)
+
+
 
 
         
@@ -1059,17 +1151,40 @@ export class Maze extends Base_Scene {
                 }
             }
             e.update(dt, this.person_location, noCollide);
-            e.draw_bot(context, program_state, this.shapes, this.materials.chest, this.materials.bug, program_state.animation_time);
+            let colorVec = [this.materials.bug, this.materials.bug2, this.materials.bug3, this.materials.bug35, this.materials.bug4];
+            let ind = 5-e.health;
+            if(ind < 0 || ind > 4){
+                ind = 4;
+            }
+
+            console.log(ind);
+            e.draw_bot(context, program_state, this.shapes, this.materials.red, colorVec[ind], program_state.animation_time);
 
         }
 
         for(let e of this.enemyList){
             for(let p of this.projList){
-                if(!p.evil && this.check_bullet_collision(p, e)){
+                if(!p.evil && this.check_bullet_collision(p, e) && e.cooldownTimer == 0){
                     console.log("Ouch.");
+                    e.health -= 1;
+                    e.damageTimer = 5;
+                    e.cooldownTimer = 40;
                 }
+
             }
         }
+        for(let p of this.projList){
+            if(p.evil && this.check_bullet_collision(p,1)){
+                console.log("Very ouch.");
+                this.projList = [];
+                if (confirm("You died. Click 'OK' to restart.")) {
+                    location.reload();
+                }
+                
+            }
+        }
+        this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
+        
 
         
         
