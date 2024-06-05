@@ -1214,11 +1214,6 @@ export class Maze extends Base_Scene {
             //this.proj.render(context, program_state, this.materials.bullet, this.shapes);
         }
 
-
-
-        // Emit new particles
-        this.particleSystem.emitParticle();
-
         // Update the particle system
         this.particleSystem.update(program_state.animation_delta_time / 1000);
 
@@ -1636,6 +1631,8 @@ class ParticleSystem {
     }
 
     update(dt) {
+        // Emit new particles
+        this.emitParticle();
         // Update all particles
         this.particles.forEach(particle => particle.update(dt));
         // Remove dead particles
