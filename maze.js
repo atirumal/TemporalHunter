@@ -15,6 +15,7 @@ const {
 const MOVE = 1;
 const SHUFFLE = 2;
 const ATTACK = 3;
+const CHARGE = 4;
 
 const {
     Cube,
@@ -140,13 +141,19 @@ class Enemy {
             else if(this.moveStatus != SHUFFLE){
                 console.log("diff");
                 let r = Math.random();
-                if(r < 0.7){
+                if(r < 0.45){
                     this.moveStatus = ATTACK;
                     this.timer = 80;
+                }
+                else if(r < 0.7){
+                    this.moveStatus = CHARGE;
+                    this.timer = 40;
+                    this.speed = 0.18;
                 }
                 else{
                     this.moveStatus = MOVE;
                     this.timer = 100;
+                    this.speed = 0.04;
                 }
                 
      
@@ -158,7 +165,12 @@ class Enemy {
         if(this.moveStatus == SHUFFLE && this.distanceBetweenPoints(this.position, vec3(playerLoc[0],playerLoc[1],playerLoc[2])) < this.detectRange){
            
             this.moveStatus = MOVE;
-            this.speed = 0.04
+            this.speed = 0.04;
+        }
+
+        if(this.moveStatus == SHUFFLE && this.health < 5){
+            this.moveStatus = MOVE;
+            this.speed = 0.04;
         }
         else if(this.moveStatus == MOVE && this.distanceBetweenPoints(this.position, vec3(playerLoc[0],playerLoc[1],playerLoc[2])) > this.outRange){
             
@@ -168,7 +180,7 @@ class Enemy {
 
 
         // Update direction to point towards the playe
-        if(this.moveStatus == MOVE && this.reverseTimer == 0){
+        if((this.moveStatus == MOVE || this.moveStatus == CHARGE) && this.reverseTimer == 0){
          
             this.direction = vec3(
                 playerLoc[0] - this.position[0], 
@@ -255,8 +267,13 @@ class Enemy {
 
         // Draw left arm
         let leftAngle = angleArm;
+        let rightAngle = -angleArm;
         if(this.moveStatus == ATTACK){
             leftAngle = -Math.PI/2.9;
+        }
+        if(this.moveStatus == CHARGE){
+            leftAngle = -Math.PI/2.9;
+            rightAngle = -Math.PI/2.9;
         }
         let left_arm_transform = model_transform.times(Mat4.translation(0,0.6,0))
                                                 .times(Mat4.rotation(leftAngle,1,0,0))
@@ -268,7 +285,7 @@ class Enemy {
 
         // Draw right arm
         let right_arm_transform = model_transform.times(Mat4.translation(0,0.6,0))
-                                                .times(Mat4.rotation(-angleArm,1,0,0))
+                                                .times(Mat4.rotation(rightAngle,1,0,0))
                                                 .times(Mat4.translation(0,-0.6,0))
                                                 .times(Mat4.translation(0.5, 0, 0.15))
                                                  .times(Mat4.scale(0.1, 0.6, 0.1));
@@ -579,7 +596,12 @@ export class Maze extends Base_Scene {
         // Initialization
         this.smokeOrigin = vec3(15, 0.8, -2);
         this.particleSystem = new ParticleSystem(this.smokeOrigin, 10);
+<<<<<<< HEAD
         this.grenadeList = []
+=======
+        this.enemyKill = vec3(15,1,1);
+        this.enemyParticleSystem;
+>>>>>>> 289db4008ff773458e84ba04fc8a90e27c6d18b7
     }
 
     // generates a list of 2D vectors representing the corners of a square centered around a given base value
@@ -957,6 +979,50 @@ export class Maze extends Base_Scene {
         
     }
 
+    normalizeVector(vector) {
+        // Calculate the magnitude (length) of the vector
+        const length = Math.sqrt(vector.reduce((sum, component) => sum + component ** 2, 0));
+        
+        // Check if the length is zero to avoid division by zero
+        if (length === 0) {
+            throw new Error("Cannot normalize a zero-length vector");
+        }
+    
+        // Divide each component by the length to normalize
+        return vector.map(component => component / length);
+    }
+
+    shift(vec, min, max) {
+        const scale = Math.sqrt(vec.reduce((sum, component) => sum + component ** 2, 0));
+
+        const minAngle = min;  
+        const maxAngle = max; 
+
+       
+        const minAngleRad = minAngle * (Math.PI / 180);
+        const maxAngleRad = maxAngle * (Math.PI / 180);
+
+       
+        const randomAngleRad = Math.random() * (maxAngleRad - minAngleRad) + minAngleRad;
+
+      
+        const clockwise = Math.random() >= 0.5 ? 1 : -1;
+
+        // Calculate the new direction
+        const cosAngle = Math.cos(randomAngleRad);
+        const sinAngle = Math.sin(randomAngleRad) * clockwise;
+
+        let newDirection = vec3(
+            vec[0] * cosAngle - vec[2] * sinAngle,
+            vec[1],
+            vec[0] * sinAngle + vec[2] * cosAngle,
+             // Assuming no change in the z-component for simplicity
+        );
+        newDirection = this.normalizeVector(newDirection);
+        return vec3(newDirection[0]*scale, newDirection[1]*scale,newDirection[2]*scale);
+       
+    }
+
     spawn_enemy_projectile(e){
 
         this.proj_transf = Mat4.identity().times(Mat4.translation(e.position[0],e.position[1],e.position[2]));
@@ -967,7 +1033,8 @@ export class Maze extends Base_Scene {
             playerLoc[2] - e.position[2]
         );
 
-        let dirVec = dir;
+        let dirVec = this.shift(dir,-6,6);
+
         const proj = new Projectile(this.proj_transf, 8, dirVec, true, e.position);
         this.projList.push(proj);
           
@@ -1129,8 +1196,11 @@ export class Maze extends Base_Scene {
         this.draw_chest(context, program_state);
 
         if(t == 0){
-            let e = new Enemy(vec3(2+15,1,-2));
-            this.enemyList.push(e);
+            let e1 = new Enemy(vec3(2+15,1,-2));
+            this.enemyList.push(e1);
+            let e2 = new Enemy(vec3(11.1,0.8,-13.4));
+            this.enemyList.push(e2);
+
         }
 
         for(let e of this.enemyList){
@@ -1168,15 +1238,22 @@ export class Maze extends Base_Scene {
                     e.health -= 1;
                     e.damageTimer = 5;
                     e.cooldownTimer = 40;
+                    if(e.health == 0){
+                        this.enemyKill = vec3(e.position[0],e.position[1]-1.5,e.position[2]);
+                        this.enemyParticleSystem = new ParticleSystem(this.enemyKill, 2);
+                    }
                 }
 
             }
         }
         for(let p of this.projList){
-            if(p.evil && this.check_bullet_collision(p,1)){
+            if(p.evil && this.check_bad_bullet_collision(p,1)){
                 console.log("Very ouch.");
                 this.projList = [];
                 if (confirm("You died. Click 'OK' to restart.")) {
+                    location.reload();
+                }
+                else{
                     location.reload();
                 }
                 
@@ -1185,7 +1262,21 @@ export class Maze extends Base_Scene {
         this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
         
 
-        
+        //collision between human and enemy
+        for(let e of this.enemyList){
+            let enemyPos = this.get_enemy_box_tips(e.position);
+            let personPos = this.get_person_box_tips(this.person_location);
+            if(this.box_collide_2d(personPos, enemyPos)){
+                e.health = 0;
+                this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
+                if (confirm("You died. Click 'OK' to restart.")) {
+                    location.reload();
+                }
+                else{
+                    location.reload();
+                }
+            }
+        }
         
 
 
@@ -1214,9 +1305,10 @@ export class Maze extends Base_Scene {
         }
 
         // Update the particle system
-        this.particleSystem.update(program_state.animation_delta_time / 1000);
+      //  this.particleSystem.update(program_state.animation_delta_time / 1000);
 
         // Render the particle system
+<<<<<<< HEAD
         this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
         
         this.grenadeList.forEach(grenade => {
@@ -1228,6 +1320,18 @@ export class Maze extends Base_Scene {
 // In your game loop update and render methods:
 
 //    
+=======
+      //  this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
+
+        if(this.enemyParticleSystem != null){
+            console.log("Present...");
+            this.enemyParticleSystem.update(program_state.animation_delta_time / 1000);
+
+            // Render the particle system
+            this.enemyParticleSystem.render(context, program_state, this.shapes, this.materials.light_src);
+        }
+       
+>>>>>>> 289db4008ff773458e84ba04fc8a90e27c6d18b7
         this.tick = this.tick + 1;
         this.draw_crosshair();
     }
