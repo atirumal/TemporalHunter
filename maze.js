@@ -115,13 +115,13 @@ class Enemy {
         this.health = 5;
         this.damageTimer = 0;
         this.cooldownTimer = 0;
+       // this.canFlash = canFlash;
     }
 
-    update(dt, playerLoc, collide) {
+    update(dt, playerLoc, collide, flash) {
 
         
         if(collide){
-            console.log("here");
             this.handleCollision(170, 195);
             if(this.speed == 0.02){
                 this.reverseTimer = 35;
@@ -140,18 +140,21 @@ class Enemy {
                 this.timer = 200;
             }
             else if(this.moveStatus != SHUFFLE){
-                console.log("diff");
                 let r = Math.random();
-                if(r < 1){
+                if(flash){
+                    this.moveStatus = BOMB;
+                    this.timer = 100;
+                }
+                else if(r < 0){
                     this.moveStatus = BOMB;
                     this.timer = 100;
                     
                 }
-                else if(r < 0.6){
+                else if(r < 0.4){
                     this.moveStatus = ATTACK;
                     this.timer = 95;
                 }
-                else if(r < 0.755){
+                else if(r < 0.75){
                     this.moveStatus = CHARGE;
                     this.timer = 40;
                     this.speed = 0.18;
@@ -604,6 +607,7 @@ export class Maze extends Base_Scene {
         this.enemyKill = vec3(15,1,1);
         this.enemyParticleSystem;
         this.flashGrenadeTimer = 0;
+        this.needsFlash = false;
     }
 
 
@@ -1218,14 +1222,14 @@ export class Maze extends Base_Scene {
             else if(e.moveStatus==BOMB){
                 if(e.shootTimer == 0){
                     e.shootTimer = 100;
-                    console.log("AAAAA");
-                    this.grenadeList.push(new Grenade(e.position, this.camPosition, this.smokeList, this.make_grenade_bomb, true));
+                    this.grenadeList.push(new Grenade(e.position, this.camPosition, this.smokeList, this.make_grenade_bomb, true, 5, this.flashGrenadeTimer));
                 }
                
             }
             let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
             if(!this.freeze || (this.freeze && anyMovement)){
-            e.update(dt, this.person_location, noCollide);
+            console.log(this.needsFlash);
+            e.update(dt, this.person_location, noCollide, this.needsFlash);
             this.prevTime = program_state.animation_time;
             }
             let colorVec = [this.materials.bug, this.materials.bug2, this.materials.bug3, this.materials.bug35, this.materials.bug4];
@@ -1253,7 +1257,6 @@ export class Maze extends Base_Scene {
             for(let p of this.projList){
                 if(!p.evil && this.check_bullet_collision(p, e) && e.cooldownTimer == 0){
                     
-                    console.log("Ouch.");
                    // this.flashGrenadeTimer = 160;
                     
 
@@ -1271,7 +1274,6 @@ export class Maze extends Base_Scene {
         }
         for(let p of this.projList){
             if(p.evil && this.check_bad_bullet_collision(p,1)){
-                console.log("Very ouch.");
                 this.projList = [];
                 if (confirm("You died. Click 'OK' to restart.")) {
                     location.reload();
@@ -1287,7 +1289,6 @@ export class Maze extends Base_Scene {
             let bullet_loc = p.getTranslation(p.model_transform);
             let bulletPos = this.get_bullet_box_tips(bullet_loc);
             if(!this.check_person_colliding_wall(bulletPos)){
-                console.log("ohh no");
                 p.isAlive = false;
                 this.projDelay = 0;
             }
@@ -1350,8 +1351,6 @@ export class Maze extends Base_Scene {
         }
         
         this.smokeList.forEach(smoke =>{
-            console.log("updated");
-            console.log(smoke.active);
             let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
             if(!this.freeze || (this.freeze && anyMovement)){
             smoke.update(program_state.animation_delta_time / 1000)
@@ -1361,19 +1360,25 @@ export class Maze extends Base_Scene {
 
         // Render the particle system
         let playerVector = this.lookatpoint.minus(this.camPosition).normalized();
+        let newTimer = 0;
         this.grenadeList = this.grenadeList = this.grenadeList.filter(nade => nade.exploded == false);
         this.grenadeList.forEach(grenade => {
             let grenadepos = this.get_bullet_box_tips(grenade.position);
             if(!this.check_person_colliding_wall(grenadepos)){
-                grenade.explode(playerVector);
+                newTimer = grenade.explode(playerVector, this.camPosition);
             }
             let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
             if(!this.freeze || (this.freeze && anyMovement)){
-            grenade.update(dt, playerVector); // Update each grenade with the delta time and walls array
+                newTimer = grenade.update(dt, playerVector.copy(), this.camPosition); // Update each grenade with the delta time and walls array
             }
             grenade.render(context, program_state, this.shapes, this.materials.light_src); // Render each grenade
             if(grenade.toExplode == true){
-                this.flashGrenadeTimer = 160;
+                let gPlayer = (grenade.position[0]-this.camPosition[0])**2 + (grenade.position[2]-this.camPosition[2])**2;
+
+                this.flashGrenadeTimer = grenade.flashTime;
+                
+                
+                
                 grenade.toExplode = false;
             }
         });
@@ -1381,7 +1386,6 @@ export class Maze extends Base_Scene {
 
 
         if(this.enemyParticleSystem != null){
-            console.log("Present...");
             this.enemyParticleSystem.update(program_state.animation_delta_time / 1000);
 
             // Render the particle system
@@ -1507,25 +1511,27 @@ export class Maze extends Base_Scene {
     gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
     }
 
-    make_new_smoke(list, position, dir){
+    make_new_smoke(list, position, dir, playerVec){
         list.push(new ParticleSystem(position, 10));
+        return 0;
     }
 
-    make_grenade_bomb(list, position, incomDir, playerVector){
+    make_grenade_bomb(list, position, playerVector, incomDir, grenadeTimer){
         //
-        console.log("hi");
-        console.log("hi2");
-        console.log(position);
-        console.log(incomDir);
         let dotProduct = incomDir[0]*playerVector[0] + incomDir[1]*playerVector[1] + incomDir[2]*playerVector[2];
+        console.log("hi2");
+        //console.log(dotProduct);
         let mag1 = Math.sqrt(incomDir[0]**2 + incomDir[1]**2 + incomDir[2]**2);
         let mag2 = Math.sqrt(playerVector[0]**2 + playerVector[1]**2 + playerVector[2]**2);
         let cosAngle = dotProduct / (mag1*mag2);
 
-        let length = Math.round(80 * (cosAngle+1));
+       // console.log(cosAngle);
+        let length = Math.round(50 * (cosAngle+1)) + 60;
         console.log("Called");
+        console.log(length);
         
-        this.flashGrenadeTimer = length;
+        grenadeTimer = length;
+        return length;
     }
 
 
@@ -1667,9 +1673,10 @@ export class Maze extends Base_Scene {
         this.new_line();
         this.key_triggered_button("Down", ["z"], () => this.thrust[1] = 1, undefined, () => this.thrust[1] = 0);
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
+        this.key_triggered_button("Flash Demo", ["f"], () => this.needsFlash = !this.needsFlash);
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
         this.key_triggered_button("Spawn Grenade", ["g"], () => {
-            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList, this.make_new_smoke, false));
+            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList, this.make_new_smoke, false, 10));
         });        
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
@@ -1684,7 +1691,7 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
         this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
         this.new_line();
-        this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
+        //this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
         this.new_line();
         this.key_triggered_button("Go to world origin", ["r"], () => {
             this.matrix().set_identity(4, 4);
@@ -1951,7 +1958,6 @@ class ParticleSystem {
         }
         this.age += dt;
         if(this.age > this.timer){
-            console.log("THIS SMOKE IS DED");
             this.active = false;
         }
     }
@@ -1964,10 +1970,10 @@ class ParticleSystem {
 
 
 class Grenade {
-    constructor(camPosition, lookatpoint, objectlist, func, flash) {
+    constructor(camPosition, lookatpoint, objectlist, func, flash, drt, timer) {
         // Calculate the initial velocity based on the direction vector (lookatpoint - camPosition)
         const direction = lookatpoint.minus(camPosition).normalized();
-        const speed = 10; // Adjust speed as necessary
+        const speed = drt; // Adjust speed as necessary
         this.velocity = direction.times(speed);
         // Set the initial position to the camera position
         this.position = camPosition.copy();
@@ -1980,7 +1986,6 @@ class Grenade {
         
         // Explosion countdown (in seconds)
         this.explosionCountdown = 0.7;
-        console.log("made nade");
         // Check if grenade has exploded
         this.exploded = false;
         this.prev;
@@ -1989,10 +1994,12 @@ class Grenade {
         this.flash = flash;
         this.toExplode = false;
         this.newDir;
+        this.timeGrenade = timer;
+        this.flashTime = 0;
     }
     
     // Update grenade position based on projectile motion equations
-    update(dt,playerVec) {
+    update(dt,playerVec, playerPoint) {
         if (this.exploded) return;
 
         this.time += dt;
@@ -2014,27 +2021,29 @@ class Grenade {
         
         // Check if it's time to explode
         if (this.time >= this.explosionCountdown) {
-            this.explode(playerVec);
+            return this.explode(playerVec.copy(), playerPoint);
         }
+        return 0;
     }
 
     // Handle explosion
-    explode(playerVec) {
+    explode(playerVec, playerPoint) {
         this.exploded = true;
         //this.mainList.push(new ParticleSystem(this.prev, 10));
-        console.log("Outer");
-        console.log(playerVec);
+       // console.log("Outer");
+       // console.log(playerVec);
         this.newDir = playerVec;
-        this.func(this.mainList, this.prev, this.direction, this.newDir);
+        let grenadeVect = this.position.minus(playerPoint).normalized();
         if(this.flash){
             this.toExplode = true;
         }
+        this.flashTime = this.func(this.mainList, this.prev, this.newDir, grenadeVect, this.grenadeTimer);
+        
   
         
 
         // Spawn ParticleSystem at the grenade's position
         // new ParticleSystem(this.position);
-        console.log("Grenade exploded at position", this.prev);
     }
 
     // Render the grenade
