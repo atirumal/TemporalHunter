@@ -1323,7 +1323,7 @@ export class Maze extends Base_Scene {
             if(!this.check_person_colliding_wall(grenadepos)){
                 grenade.explode();
             }
-            grenade.update(dt, this.box_coord); // Update each grenade with the delta time and walls array
+            grenade.update(dt); // Update each grenade with the delta time and walls array
             grenade.render(context, program_state, this.shapes, this.materials.light_src); // Render each grenade
         });
         
@@ -1800,7 +1800,7 @@ class Grenade {
     }
     
     // Update grenade position based on projectile motion equations
-    update(dt, walls) {
+    update(dt) {
         if (this.exploded) return;
 
         this.time += dt;
@@ -1824,48 +1824,6 @@ class Grenade {
         if (this.time >= this.explosionCountdown) {
             this.explode();
         }
-    }
-
-    // Handle collision with walls and reflection
-    handleCollisions(walls) {
-        for (let wall of walls) {
-            if (this.detectCollision(wall)) {
-                // Reflect the grenade based on the angle of collision
-                this.reflect(wall);
-            }
-        }
-    }
-
-    // Detect collision with a wall
-    detectCollision(wall) {
-        const grenadeBox = this.get_bullet_box_tips(this.position);
-        const wallBox = this.get_wall_brick_box_tips(wall);
-
-        if(this.box_collide_2d(grenadeBox, wallBox)){
-            console.log("INSANE");
-        }
-        
-        return this.box_collide_2d(grenadeBox, wallBox);
-    }
-
-    // Reflect the grenade's velocity vector based on the wall's normal
-    reflect(wall) {
-        const normal = this.get_wall_normal(wall);
-
-        // Reflect the velocity vector
-        const dotProduct = this.velocity.dot(normal);
-        this.velocity = this.velocity.minus(normal.times(2 * dotProduct));
-    }
-
-    // Calculate the normal of a wall based on its position
-    get_wall_normal(wall) {
-        const tolerance = 0.1;
-        if (Math.abs(wall[0] - this.position[0]) < tolerance) return vec3(-1, 0, 0);
-        if (Math.abs(wall[0] - this.position[0] - 1) < tolerance) return vec3(1, 0, 0);
-        if (Math.abs(wall[2] - this.position[2]) < tolerance) return vec3(0, 0, -1);
-        if (Math.abs(wall[2] - this.position[2] - 1) < tolerance) return vec3(0, 0, 1);
-
-        return vec3(0, 1, 0); // Default normal
     }
 
     // Handle explosion
