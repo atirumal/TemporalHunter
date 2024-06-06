@@ -501,6 +501,9 @@ class Base_Scene extends Scene {
                 specularity: 0.5
             }),
 
+        
+
+
 
 
 
@@ -594,8 +597,7 @@ export class Maze extends Base_Scene {
 
         this.jumpBool = false;
         // Initialization
-        this.smokeOrigin = vec3(15, 0.8, -2);
-        this.particleSystem = new ParticleSystem(this.smokeOrigin, 10);
+        this.smokeList = []
         this.grenadeList = []
         this.enemyKill = vec3(15,1,1);
         this.enemyParticleSystem;
@@ -846,6 +848,7 @@ export class Maze extends Base_Scene {
         this.shapes.person.draw(context, program_state, this.person_transformation, this.materials.person); // draw the player character shape using its transformation (person_transformation) and material
     }
 
+
     // initializes texture buffers for shadow mapping in WebGL
     texture_buffer_init(gl) {
         // Create a new depth texture (lightDepthTexture) and binds it to the Buffered_Texture
@@ -1042,8 +1045,6 @@ export class Maze extends Base_Scene {
     }
 
 
-    
-
     // move box up and down at the same position
     draw_chest(context, program_state) {
         const t = program_state.animation_time / 1000;
@@ -1222,7 +1223,6 @@ export class Maze extends Base_Scene {
                 ind = 4;
             }
 
-            console.log(ind);
             e.draw_bot(context, program_state, this.shapes, this.materials.red, colorVec[ind], program_state.animation_time);
 
         }
@@ -1302,12 +1302,27 @@ export class Maze extends Base_Scene {
         }
 
         // Update the particle system
-      //  this.particleSystem.update(program_state.animation_delta_time / 1000);
+
+        for (let i = this.smokeList.length - 1; i >= 0; i--) {
+            if (!this.smokeList[i].active) {
+                this.smokeList.splice(i, 1);
+            }
+        }
+        
+        this.smokeList.forEach(smoke =>{
+            console.log("updated");
+            console.log(smoke.active);
+            smoke.update(program_state.animation_delta_time / 1000)
+            smoke.render(context, program_state, this.shapes, this.materials.light_src);
+        })
 
         // Render the particle system
-        this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
-        
+        this.grenadeList = this.grenadeList.filter(nade => nade.exploded == false);
         this.grenadeList.forEach(grenade => {
+            let grenadepos = this.get_bullet_box_tips(grenade.position);
+            if(!this.check_person_colliding_wall(grenadepos)){
+                grenade.explode();
+            }
             grenade.update(dt, this.box_coord); // Update each grenade with the delta time and walls array
             grenade.render(context, program_state, this.shapes, this.materials.light_src); // Render each grenade
         });
@@ -1470,7 +1485,7 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
         this.key_triggered_button("Spawn Grenade", ["g"], () => {
-            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint));
+            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList));
         });        
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
@@ -1748,6 +1763,7 @@ class ParticleSystem {
         this.particles = this.particles.filter(particle => particle.isAlive());
         this.age += dt;
         if(this.age > this.timer){
+            console.log("THIS SMOKE IS DED");
             this.active = false;
         }
     }
@@ -1760,12 +1776,11 @@ class ParticleSystem {
 
 
 class Grenade {
-    constructor(camPosition, lookatpoint) {
+    constructor(camPosition, lookatpoint, objectlist) {
         // Calculate the initial velocity based on the direction vector (lookatpoint - camPosition)
         const direction = lookatpoint.minus(camPosition).normalized();
         const speed = 10; // Adjust speed as necessary
         this.velocity = direction.times(speed);
-        
         // Set the initial position to the camera position
         this.position = camPosition.copy();
         
@@ -1776,10 +1791,12 @@ class Grenade {
         this.time = 0;
         
         // Explosion countdown (in seconds)
-        this.explosionCountdown = 3;
-        
+        this.explosionCountdown = 0.7;
+        console.log("made nade");
         // Check if grenade has exploded
         this.exploded = false;
+        this.prev;
+        this.mainList = objectlist;
     }
     
     // Update grenade position based on projectile motion equations
@@ -1787,7 +1804,7 @@ class Grenade {
         if (this.exploded) return;
 
         this.time += dt;
-        
+        this.prev = this.position.copy()
         // Update position based on kinematics equations
         this.position = this.position.plus(this.velocity.times(dt)).plus(this.gravity.times(0.5 * dt * dt));
         
@@ -1795,7 +1812,7 @@ class Grenade {
         this.velocity = this.velocity.plus(this.gravity.times(dt));
         
         // Check for collision with walls and handle reflection
-        this.handleCollisions(walls);
+        //this.handleCollisions(walls);
         
         // Check for collision with ground
         if (this.position[1] <= 0) {
@@ -1854,9 +1871,11 @@ class Grenade {
     // Handle explosion
     explode() {
         this.exploded = true;
+        this.mainList.push(new ParticleSystem(this.prev, 10))
+
         // Spawn ParticleSystem at the grenade's position
         // new ParticleSystem(this.position);
-        console.log("Grenade exploded at position", this.position);
+        console.log("Grenade exploded at position", this.prev);
     }
 
     // Render the grenade
@@ -1866,20 +1885,6 @@ class Grenade {
         // Grenade rendering logic
         const model_transform = Mat4.translation(...this.position).times(Mat4.scale(0.2, 0.2, 0.2));
         shapes.sphere.draw(context, program_state, model_transform, material);
-    }
-
-    // Get the bounding box tips for the grenade
-    get_bullet_box_tips(hypothetic_bullet_position) {
-        const bullet_location = hypothetic_bullet_position;
-        const base = 0.1; // defines half the size of the person's bounding box
-        const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
-        let res = []; // add offsets to the person's location to compute the bounding box tips
-        for (let offset of offsets) {
-            res.push(
-                vec(bullet_location[0] + offset[0], -bullet_location[2] - offset[1])
-            )
-        }
-        return res;
     }
 
     // Calculate offsets for bounding box corners
