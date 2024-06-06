@@ -16,6 +16,7 @@ const MOVE = 1;
 const SHUFFLE = 2;
 const ATTACK = 3;
 const CHARGE = 4;
+const BOMB = 5;
 
 const {
     Cube,
@@ -121,12 +122,12 @@ class Enemy {
         
         if(collide){
             console.log("here");
-            this.handleCollision(140, 210);
+            this.handleCollision(170, 195);
             if(this.speed == 0.02){
-                this.reverseTimer = 20;
+                this.reverseTimer = 35;
             }
             else{
-                this.reverseTimer = 10;
+                this.reverseTimer = 17.5;
             }
            
         }
@@ -141,11 +142,16 @@ class Enemy {
             else if(this.moveStatus != SHUFFLE){
                 console.log("diff");
                 let r = Math.random();
-                if(r < 0.45){
-                    this.moveStatus = ATTACK;
-                    this.timer = 80;
+                if(r < 1){
+                    this.moveStatus = BOMB;
+                    this.timer = 100;
+                    
                 }
-                else if(r < 0.7){
+                else if(r < 0.6){
+                    this.moveStatus = ATTACK;
+                    this.timer = 95;
+                }
+                else if(r < 0.755){
                     this.moveStatus = CHARGE;
                     this.timer = 40;
                     this.speed = 0.18;
@@ -224,11 +230,7 @@ class Enemy {
 
 
     draw_bot(context, program_state, shapes, material2, material, time){
-        //material.shader.activate(context);
-       // material.shader.update_GPU(context, program_state, model_transform, material);
-
-      //  const healthLocation = material.shader.gl.getUniformLocation(material.shader.program, 'u_health');
-       // material.shader.gl.uniform1f(healthLocation, this.health);
+      
 
         let angle = 2*Math.PI/24 * Math.sin(time/300);
         let angleArm = 24/10 * angle;
@@ -551,12 +553,7 @@ class Base_Scene extends Scene {
 
 
 export class Maze extends Base_Scene {
-    /**
-     * This Scene object can be added to any display canvas.
-     * We isolate that code so it can be experimented with on its own.
-     * This gives you a very small code sandbox for editing a simple scene, and for
-     * experimenting with matrix transformations.
-     */
+
     constructor() { // initialize the maze-specific properties and configurations
         super();
         this.get_coords(); //  fetches the coordinates necessary for the maze
@@ -581,6 +578,11 @@ export class Maze extends Base_Scene {
         this.projList = [];
         this.enemyList = [];
         this.freeze = false;
+        this.whiteout_shader = new Whiteout_Shader();
+        this.prevTime = 0;
+        this.whiteout_material = {
+            shader: this.whiteout_shader
+        }
         this.projDelay = 0;
         
         //movement stuff 
@@ -601,7 +603,9 @@ export class Maze extends Base_Scene {
         this.grenadeList = []
         this.enemyKill = vec3(15,1,1);
         this.enemyParticleSystem;
+        this.flashGrenadeTimer = 0;
     }
+
 
     // generates a list of 2D vectors representing the corners of a square centered around a given base value
     get_offsets(base) {
@@ -778,11 +782,6 @@ export class Maze extends Base_Scene {
 
 
 
-
-        let boxBullet = this.get_bullet_box_tips(bullet_loc);
-        return this.box_collide_2d(boxBullet, boxPos);
-
-
         
 
 
@@ -845,7 +844,7 @@ export class Maze extends Base_Scene {
     // draw the player character in the maze
     draw_person(context, program_state) {
         program_state.set_camera(this.camera_transformation) // sets the camera transformation to the current camera transformation
-        this.shapes.person.draw(context, program_state, this.person_transformation, this.materials.person); // draw the player character shape using its transformation (person_transformation) and material
+       // this.shapes.person.draw(context, program_state, this.person_transformation, this.materials.person); // draw the player character shape using its transformation (person_transformation) and material
     }
 
 
@@ -932,7 +931,7 @@ export class Maze extends Base_Scene {
         const t = program_state.animation_time;
         program_state.draw_shadow = draw_shadow;
         let box_model_transform = Mat4.identity();
-
+        
         // Light source rendering:
         // If draw_light_source is true and it's the shadow pass, draw a sphere representing the light source using the shapes.sphere object
         if (draw_light_source && shadow_pass) {
@@ -1033,7 +1032,7 @@ export class Maze extends Base_Scene {
             playerLoc[2] - e.position[2]
         );
 
-        let dirVec = this.shift(dir,-6,6);
+        let dirVec = this.shift(dir,-3,3);
 
         const proj = new Projectile(this.proj_transf, 8, dirVec, true, e.position);
         this.projList.push(proj);
@@ -1216,22 +1215,49 @@ export class Maze extends Base_Scene {
                     this.spawn_enemy_projectile(e);
                 }
             }
+            else if(e.moveStatus==BOMB){
+                if(e.shootTimer == 0){
+                    e.shootTimer = 100;
+                    console.log("AAAAA");
+                    this.grenadeList.push(new Grenade(e.position, this.camPosition, this.smokeList, this.make_grenade_bomb, true));
+                }
+               
+            }
+            let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
+            if(!this.freeze || (this.freeze && anyMovement)){
             e.update(dt, this.person_location, noCollide);
+            this.prevTime = program_state.animation_time;
+            }
             let colorVec = [this.materials.bug, this.materials.bug2, this.materials.bug3, this.materials.bug35, this.materials.bug4];
             let ind = 5-e.health;
             if(ind < 0 || ind > 4){
                 ind = 4;
             }
 
-            e.draw_bot(context, program_state, this.shapes, this.materials.red, colorVec[ind], program_state.animation_time);
+            let timeInput = program_state.animation_time;
+            if(this.freeze){
+                timeInput = this.prevTime;
+            }
+            else{
+                this.prevTime = timeInput;
+            }
+
+            e.draw_bot(context, program_state, this.shapes, this.materials.red, colorVec[ind], timeInput);
 
         }
+
+
 
         for(let e of this.enemyList){
             this.projList = this.projList.filter(p => p.isAlive);
             for(let p of this.projList){
                 if(!p.evil && this.check_bullet_collision(p, e) && e.cooldownTimer == 0){
+                    
                     console.log("Ouch.");
+                   // this.flashGrenadeTimer = 160;
+                    
+
+        
                     e.health -= 1;
                     e.damageTimer = 5;
                     e.cooldownTimer = 40;
@@ -1256,6 +1282,20 @@ export class Maze extends Base_Scene {
                 
             }
         }
+
+        for(let p of this.projList){
+            let bullet_loc = p.getTranslation(p.model_transform);
+            let bulletPos = this.get_bullet_box_tips(bullet_loc);
+            if(!this.check_person_colliding_wall(bulletPos)){
+                console.log("ohh no");
+                p.isAlive = false;
+                this.projDelay = 0;
+            }
+        }
+
+        
+
+
         this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
         
 
@@ -1312,26 +1352,33 @@ export class Maze extends Base_Scene {
         this.smokeList.forEach(smoke =>{
             console.log("updated");
             console.log(smoke.active);
+            let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
+            if(!this.freeze || (this.freeze && anyMovement)){
             smoke.update(program_state.animation_delta_time / 1000)
+            }
             smoke.render(context, program_state, this.shapes, this.materials.light_src);
         })
 
         // Render the particle system
-        this.grenadeList = this.grenadeList.filter(nade => nade.exploded == false);
+        let playerVector = this.lookatpoint.minus(this.camPosition).normalized();
+        this.grenadeList = this.grenadeList = this.grenadeList.filter(nade => nade.exploded == false);
         this.grenadeList.forEach(grenade => {
             let grenadepos = this.get_bullet_box_tips(grenade.position);
             if(!this.check_person_colliding_wall(grenadepos)){
-                grenade.explode();
+                grenade.explode(playerVector);
             }
-            grenade.update(dt); // Update each grenade with the delta time and walls array
+            let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
+            if(!this.freeze || (this.freeze && anyMovement)){
+            grenade.update(dt, playerVector); // Update each grenade with the delta time and walls array
+            }
             grenade.render(context, program_state, this.shapes, this.materials.light_src); // Render each grenade
+            if(grenade.toExplode == true){
+                this.flashGrenadeTimer = 160;
+                grenade.toExplode = false;
+            }
         });
-        
+ 
 
-// In your game loop update and render methods:
-
-//    
-      //  this.particleSystem.render(context, program_state, this.shapes, this.materials.light_src);
 
         if(this.enemyParticleSystem != null){
             console.log("Present...");
@@ -1343,10 +1390,142 @@ export class Maze extends Base_Scene {
        
         this.tick = this.tick + 1;
         this.draw_crosshair();
+        if(this.flashGrenadeTimer > 0){
+            console.log("About to explode");
+            this.flashGrenadeTimer -= 1;
+            this.flashEffect(gl, this.flashGrenadeTimer,false);
+        }
+        else if(this.freeze){
+            this.flashEffect(gl, this.flashGrenadeTimer, true);
+        }
     }
 
-    make_new_smoke(list, position){
+    createShaderProgram(gl, vertex_shader_source, fragment_shader_source) {
+        // Create vertex shader
+        let vertex_shader = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vertex_shader, vertex_shader_source);
+        gl.compileShader(vertex_shader);
+    
+        // Create fragment shader
+        let fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fragment_shader, fragment_shader_source);
+        gl.compileShader(fragment_shader);
+    
+        // Create shader program
+        let shader_program = gl.createProgram();
+        gl.attachShader(shader_program, vertex_shader);
+        gl.attachShader(shader_program, fragment_shader);
+        gl.linkProgram(shader_program);
+    
+        return shader_program;
+    }
+    
+
+    flashEffect(gl, t, isPurple){
+        
+
+
+        let vertex_shader_source = `
+            attribute vec2 position;
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+            `;
+
+            // Fragment shader source code
+            let fragment_shader_source = `
+            precision mediump float;
+            uniform float t;
+            float x;
+            void main() {
+                if(t >120.0){
+                    x = 0.9;
+                }
+                else{
+                    x = t/150.0;
+                }
+                gl_FragColor = vec4(1.0, 1.0, 1.0, x); // White color
+            }
+            `;
+
+            if(isPurple){
+                
+            
+
+            fragment_shader_source = `
+            precision mediump float;
+            uniform float t;
+            float x;
+            void main() {
+               
+                gl_FragColor = vec4(0.2,0.0,0.8,0.09); // purple color
+            }
+            `;
+        }
+
+
+        
+
+            // Create vertex shader
+            let shader_program = this.createShaderProgram(gl, vertex_shader_source, fragment_shader_source);
+
+    // Set the value of the t uniform
+    let t_uniform_location = gl.getUniformLocation(shader_program, 't');
+    gl.useProgram(shader_program); // Ensure correct shader program is active
+    gl.uniform1f(t_uniform_location, t);
+
+    // Define vertices and indices for a full-screen quad
+    let vertices = new Float32Array([
+        -1, -1,
+        1, -1,
+        1, 1,
+        -1, 1,
+    ]);
+
+    let indices = new Uint16Array([
+        0, 1, 2,
+        0, 2, 3,
+    ]);
+
+    // Create vertex buffer for vertices
+    let vertex_buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    // Create index buffer for indices
+    let index_buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    // Bind the vertex buffer to attribute 0
+    let position_attribute_location = gl.getAttribLocation(shader_program, 'position');
+    gl.enableVertexAttribArray(position_attribute_location);
+    gl.vertexAttribPointer(position_attribute_location, 2, gl.FLOAT, false, 0, 0);
+
+    // Draw the quad using the index buffer
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+    gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+    }
+
+    make_new_smoke(list, position, dir){
         list.push(new ParticleSystem(position, 10));
+    }
+
+    make_grenade_bomb(list, position, incomDir, playerVector){
+        //
+        console.log("hi");
+        console.log("hi2");
+        console.log(position);
+        console.log(incomDir);
+        let dotProduct = incomDir[0]*playerVector[0] + incomDir[1]*playerVector[1] + incomDir[2]*playerVector[2];
+        let mag1 = Math.sqrt(incomDir[0]**2 + incomDir[1]**2 + incomDir[2]**2);
+        let mag2 = Math.sqrt(playerVector[0]**2 + playerVector[1]**2 + playerVector[2]**2);
+        let cosAngle = dotProduct / (mag1*mag2);
+
+        let length = Math.round(80 * (cosAngle+1));
+        console.log("Called");
+        
+        this.flashGrenadeTimer = length;
     }
 
 
@@ -1456,6 +1635,7 @@ export class Maze extends Base_Scene {
     show_explanation(document_element) {
     }
 
+
     make_control_panel() {
         // make_control_panel(): Sets up a panel of interactive HTML elements, including
         // buttons with key bindings for affecting this scene, and live info readouts.
@@ -1489,7 +1669,7 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
         this.key_triggered_button("Spawn Grenade", ["g"], () => {
-            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList, this.make_new_smoke));
+            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList, this.make_new_smoke, false));
         });        
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
@@ -1784,7 +1964,7 @@ class ParticleSystem {
 
 
 class Grenade {
-    constructor(camPosition, lookatpoint, objectlist, func) {
+    constructor(camPosition, lookatpoint, objectlist, func, flash) {
         // Calculate the initial velocity based on the direction vector (lookatpoint - camPosition)
         const direction = lookatpoint.minus(camPosition).normalized();
         const speed = 10; // Adjust speed as necessary
@@ -1806,10 +1986,13 @@ class Grenade {
         this.prev;
         this.mainList = objectlist;
         this.func = func;
+        this.flash = flash;
+        this.toExplode = false;
+        this.newDir;
     }
     
     // Update grenade position based on projectile motion equations
-    update(dt) {
+    update(dt,playerVec) {
         if (this.exploded) return;
 
         this.time += dt;
@@ -1831,15 +2014,23 @@ class Grenade {
         
         // Check if it's time to explode
         if (this.time >= this.explosionCountdown) {
-            this.explode();
+            this.explode(playerVec);
         }
     }
 
     // Handle explosion
-    explode() {
+    explode(playerVec) {
         this.exploded = true;
         //this.mainList.push(new ParticleSystem(this.prev, 10));
-        this.func(this.mainList, this.prev);
+        console.log("Outer");
+        console.log(playerVec);
+        this.newDir = playerVec;
+        this.func(this.mainList, this.prev, this.direction, this.newDir);
+        if(this.flash){
+            this.toExplode = true;
+        }
+  
+        
 
         // Spawn ParticleSystem at the grenade's position
         // new ParticleSystem(this.position);
@@ -1855,4 +2046,93 @@ class Grenade {
         shapes.sphere.draw(context, program_state, model_transform, material);
     }
 
+    // Calculate offsets for bounding box corners
+    get_offsets(base) {
+        return [
+            vec(base, -base),
+            vec(base, base),
+            vec(-base, base),
+            vec(-base, -base)
+        ];
+    }
+
+    // Get bounding box tips for a wall brick
+    get_wall_brick_box_tips(box_location) {
+        const base = 1; // the size of the box is set to 1
+        const offsets = this.get_offsets(base); // uses get_offsets(base) to get the corners of the box relative to its center
+        let res = [];
+        for (let offset of offsets) {
+            res.push(
+                vec(box_location[0] + offset[0], -box_location[2] - offset[1])
+            )
+        }
+        return res; // the coordinates are stored in the res array
+    }
+
+    // Check for collision between two 1D intervals
+    box_collide_1d(box1, box2) {
+        const xmin1 = box1[0];
+        const xmax1 = box1[1];
+        const xmin2 = box2[0];
+        const xmax2 = box2[1];
+        return xmax1 >= xmin2 && xmax2 >= xmin1;
+    }
+
+    // Check for collision between two 2D boxes
+    box_collide_2d(box1, box2) {
+        const xmin1 = Math.min(...box1.map(c => c[0]));
+        const xmax1 = Math.max(...box1.map(c => c[0]));
+        const ymin1 = Math.min(...box1.map(c => c[1]));
+        const ymax1 = Math.max(...box1.map(c => c[1]));
+        const xmin2 = Math.min(...box2.map(c => c[0]));
+        const xmax2 = Math.max(...box2.map(c => c[0]));
+        const ymin2 = Math.min(...box2.map(c => c[1]));
+        const ymax2 = Math.max(...box2.map(c => c[1]));
+
+        return this.box_collide_1d([xmin1, xmax1], [xmin2, xmax2]) &&
+            this.box_collide_1d([ymin1, ymax1], [ymin2, ymax2]);
+    }
 }
+
+
+
+const Whiteout_Shader = tiny.Shader = 
+    class Whiteout_Shader extends tiny.Shader {
+        
+        // Define the vertex shader
+        vertex_glsl_code() {
+            return `
+                attribute vec3 position;
+                uniform mat4 model_transform;
+                uniform mat4 projection_camera_model_transform;
+
+                void main() {
+                    gl_Position = projection_camera_model_transform * vec4(position, 1.0);
+                }
+            `;
+        }
+
+        // Define the fragment shader
+        fragment_glsl_code() {
+            return `
+                precision mediump float;
+                uniform bool whiteout;
+
+                void main() {
+                    if (whiteout) {
+                        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Set every pixel to white
+                    } else {
+                        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Placeholder: black color
+                    }
+                }
+            `;
+        }
+
+        // Update the GPU with the uniform variable
+        update_GPU(context, gpu_addresses, program_state, model_transform, material) {
+            let [P, C, M] = [program_state.projection_transform, program_state.camera_inverse, model_transform];
+            context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false, Mat4.identity().times(P).times(C).times(M).flat());
+            context.uniformMatrix4fv(gpu_addresses.model_transform, false, Mat4.identity().times(M).flat());
+            context.uniform1i(gpu_addresses.whiteout, material.whiteout);
+        }
+    }
