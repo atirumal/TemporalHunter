@@ -1304,7 +1304,7 @@ export class Maze extends Base_Scene {
         // Update the particle system
 
         for (let i = this.smokeList.length - 1; i >= 0; i--) {
-            if (!this.smokeList[i].active) {
+            if (this.smokeList[i].nothingLeft) {
                 this.smokeList.splice(i, 1);
             }
         }
@@ -1343,6 +1343,10 @@ export class Maze extends Base_Scene {
        
         this.tick = this.tick + 1;
         this.draw_crosshair();
+    }
+
+    make_new_smoke(list, position){
+        list.push(new ParticleSystem(position, 10));
     }
 
 
@@ -1485,7 +1489,7 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
         this.key_triggered_button("Spawn Grenade", ["g"], () => {
-            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList));
+            this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList, this.make_new_smoke));
         });        
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
@@ -1740,6 +1744,7 @@ class ParticleSystem {
         this.origin = origin;
         this.particles = [];
         this.active = true;
+        this.nothingLeft = false;
     }
 
     emitParticle() {
@@ -1761,6 +1766,9 @@ class ParticleSystem {
         this.particles.forEach(particle => particle.update(dt));
         // Remove dead particles
         this.particles = this.particles.filter(particle => particle.isAlive());
+        if(this.particles.length == 0){
+            this.nothingLeft = true;
+        }
         this.age += dt;
         if(this.age > this.timer){
             console.log("THIS SMOKE IS DED");
@@ -1776,7 +1784,7 @@ class ParticleSystem {
 
 
 class Grenade {
-    constructor(camPosition, lookatpoint, objectlist) {
+    constructor(camPosition, lookatpoint, objectlist, func) {
         // Calculate the initial velocity based on the direction vector (lookatpoint - camPosition)
         const direction = lookatpoint.minus(camPosition).normalized();
         const speed = 10; // Adjust speed as necessary
@@ -1797,6 +1805,7 @@ class Grenade {
         this.exploded = false;
         this.prev;
         this.mainList = objectlist;
+        this.func = func;
     }
     
     // Update grenade position based on projectile motion equations
@@ -1829,7 +1838,8 @@ class Grenade {
     // Handle explosion
     explode() {
         this.exploded = true;
-        this.mainList.push(new ParticleSystem(this.prev, 10))
+        //this.mainList.push(new ParticleSystem(this.prev, 10));
+        this.func(this.mainList, this.prev);
 
         // Spawn ParticleSystem at the grenade's position
         // new ParticleSystem(this.position);
@@ -1845,62 +1855,4 @@ class Grenade {
         shapes.sphere.draw(context, program_state, model_transform, material);
     }
 
-    // Calculate offsets for bounding box corners
-    get_offsets(base) {
-        return [
-            vec(base, -base),
-            vec(base, base),
-            vec(-base, base),
-            vec(-base, -base)
-        ];
-    }
-
-    // Get bounding box tips for a wall brick
-    get_wall_brick_box_tips(box_location) {
-        const base = 1; // the size of the box is set to 1
-        const offsets = this.get_offsets(base); // uses get_offsets(base) to get the corners of the box relative to its center
-        let res = [];
-        for (let offset of offsets) {
-            res.push(
-                vec(box_location[0] + offset[0], -box_location[2] - offset[1])
-            )
-        }
-        return res; // the coordinates are stored in the res array
-    }
-
-    // Check for collision between two 1D intervals
-    box_collide_1d(box1, box2) {
-        const xmin1 = box1[0];
-        const xmax1 = box1[1];
-        const xmin2 = box2[0];
-        const xmax2 = box2[1];
-        return xmax1 >= xmin2 && xmax2 >= xmin1;
-    }
-
-    // Check for collision between two 2D boxes
-    box_collide_2d(box1, box2) {
-        const xmin1 = Math.min(...box1.map(c => c[0]));
-        const xmax1 = Math.max(...box1.map(c => c[0]));
-        const ymin1 = Math.min(...box1.map(c => c[1]));
-        const ymax1 = Math.max(...box1.map(c => c[1]));
-        const xmin2 = Math.min(...box2.map(c => c[0]));
-        const xmax2 = Math.max(...box2.map(c => c[0]));
-        const ymin2 = Math.min(...box2.map(c => c[1]));
-        const ymax2 = Math.max(...box2.map(c => c[1]));
-
-        return this.box_collide_1d([xmin1, xmax1], [xmin2, xmax2]) &&
-            this.box_collide_1d([ymin1, ymax1], [ymin2, ymax2]);
-    }
 }
-
-
-// Example usage:
-// Assuming camPosition and lookatpoint are defined vectors
-//const grenade = new Grenade(camPosition, lookatpoint);
-
-// In your game loop update and render methods:
-
-//    grenade.update(dt, walls); // walls is an array of wall objects in the scene
-
-
-//    grenade.render(context, program_state, shapes, materials.grenadeMaterial); // Assuming grenadeMaterial is defined
