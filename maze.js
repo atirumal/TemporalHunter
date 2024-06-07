@@ -444,7 +444,7 @@ class Base_Scene extends Scene {
                     ambient: 1, diffusivity: 0.5, color: hex_color("#FFFFFF")
                 }),
             light_src: new Material(new Phong_Shader(), {
-                color: color(1, 1, 1, 0.3), ambient: 1, diffusivity: 0, specularity: 0
+                color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
             }),
             pure: new Material(new Color_Phong_Shader(), {}),
             depth_tex: new Material(new Depth_Texture_Shader_2D(), {
