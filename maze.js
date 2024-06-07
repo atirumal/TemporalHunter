@@ -122,17 +122,17 @@ class Enemy {
 
         
         if(collide){
-            this.handleCollision(170, 195);
+            this.handleCollision(150, 200);
             if(this.speed == 0.02){
-                this.reverseTimer = 35;
+                this.reverseTimer = 28;
             }
             else{
-                this.reverseTimer = 17.5;
+                this.reverseTimer = 15;
             }
            
         }
 
-        if (this.timer <= 0) {
+        if (this.timer <= 0 && this.reverseTimer <= 0) {
             
             if(this.moveStatus == SHUFFLE){
                 //choose a random direction
@@ -143,7 +143,7 @@ class Enemy {
                 let r = Math.random();
                 if(flash){
                     this.moveStatus = BOMB;
-                    this.timer = 100;
+                    this.timer = 200;
                 }
                 else if(r < 0){
                     this.moveStatus = BOMB;
@@ -157,7 +157,7 @@ class Enemy {
                 else if(r < 0.75){
                     this.moveStatus = CHARGE;
                     this.timer = 40;
-                    this.speed = 0.18;
+                    this.speed = 0.16;
                 }
                 else{
                     this.moveStatus = MOVE;
@@ -430,7 +430,8 @@ class Base_Scene extends Scene {
                 {
                     ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
                     color: hex_color("#aaaaaa"),
-                    color_texture: new Texture("./assets/brickwall.jpg"),
+                    color_texture: new Texture("./assets/sand2.jpg"),
+                    //color_texture: new Texture("./assets/floor3.webp"),
                     light_depth_texture: null
                 }),
             environment: new Material(new Shadow_Textured_Phong_Shader(1),
@@ -440,6 +441,14 @@ class Base_Scene extends Scene {
                     color_texture: new Texture("./assets/interstellar.jpg"),
                     light_depth_texture: null
                 }),
+
+            wall2: new Material(new Shadow_Textured_Phong_Shader(1),
+            {
+                ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
+                color: hex_color("#aaaaaa"),
+                color_texture: new Texture("./assets/brickwall.jpg"),
+                light_depth_texture: null
+            }),
             person: new Material(new Phong_Shader,
                 {
                     ambient: 1, diffusivity: 0.5, color: hex_color("#FFFFFF")
@@ -657,7 +666,7 @@ export class Maze extends Base_Scene {
 
     get_enemy_box_tips(hypothetic_enemy_position) {
         const enemy_location = hypothetic_enemy_position ? hypothetic_enemy_position : hypothetic_enemy_position; // Uses the hypothetical position
-        const base = 0.2; // defines half the size of the person's bounding box
+        const base = 0.3; // defines half the size of the person's bounding box
         const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
         let res = []; // add offsets to the person's location to compute the bounding box tips
         for (let offset of offsets) {
@@ -863,12 +872,31 @@ export class Maze extends Base_Scene {
 
     // draw the floor of the maze
     draw_floor(context, program_state, shadow_pass) {
+        
         const floor_transformation = Mat4.identity()
             .times(Mat4.translation(20, -1, -10))
             .times(Mat4.scale(20, 0.2, 20));
         const sphere_transformation = Mat4.identity().times(Mat4.translation(17,0,-10)).times(Mat4.scale(1000,1000,1000));
-        this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
+     //   this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
         this.shapes.sphere.draw(context, program_state, sphere_transformation, this.materials.environment);
+        
+        
+        const small_cube_size = 5; // Size of the small cubes
+        const floor_width = 40; // Total width of the floor (20*2)
+        const floor_depth = 40; // Total depth of the floor (20*2)
+        const floor_height = 0.2; // Height of the floor
+
+        const startX = -floor_width / 2 + small_cube_size / 2; // Start position X
+        const startZ = -floor_depth / 2 + small_cube_size / 2; // Start position Z
+
+        for (let x = startX; x < floor_width / 2; x += small_cube_size) {
+            for (let z = startZ; z < floor_depth / 2; z += small_cube_size) {
+                const cube_transform = Mat4.identity()
+                    .times(Mat4.translation(x + 20, -1, z - 10)) // Adjust translation based on floor position
+                    .times(Mat4.scale(small_cube_size / 2, floor_height, small_cube_size / 2));
+                this.shapes.cube.draw(context, program_state, cube_transform, shadow_pass ? this.materials.floor : this.materials.pure);
+            }
+        }
     }
 
     // draw the player character in the maze
@@ -996,7 +1024,7 @@ export class Maze extends Base_Scene {
         
         // Box rendering:
         // iterate over each box coordinate in this.box_coord
-        const scale_factor = 2; // Adjust this factor to change the height
+        const scale_factor = 1; // Adjust this factor to change the height
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
@@ -1006,7 +1034,18 @@ export class Maze extends Base_Scene {
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
                 .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
             
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.floor : this.materials.pure);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
+        }
+        for (let i = 0; i < this.box_coord.length; i++) {
+            const x = original_box_size * this.box_coord[i][0];
+            const y = original_box_size * this.box_coord[i][1];
+            const z = -original_box_size * this.box_coord[i][2];
+            
+            // Apply the scaling transformation
+            box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
+                .times(Mat4.translation(0, 2, 0)); // Scale only the y dimension
+            
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
         }
 
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
@@ -1289,7 +1328,7 @@ export class Maze extends Base_Scene {
             }
             let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
             if(!this.freeze || (this.freeze && anyMovement)){
-            console.log(this.needsFlash);
+          
             e.update(dt, this.person_location, noCollide, this.needsFlash);
             this.prevTime = program_state.animation_time;
             }
@@ -1456,7 +1495,7 @@ export class Maze extends Base_Scene {
         this.tick = this.tick + 1;
         this.draw_crosshair();
         if(this.flashGrenadeTimer > 0){
-            console.log("About to explode");
+           // console.log("About to explode");
             this.flashGrenadeTimer -= 1;
             this.flashEffect(gl, this.flashGrenadeTimer,false);
         }
@@ -1580,7 +1619,7 @@ export class Maze extends Base_Scene {
     make_grenade_bomb(list, position, playerVector, incomDir, grenadeTimer){
         //
         let dotProduct = incomDir[0]*playerVector[0] + incomDir[1]*playerVector[1] + incomDir[2]*playerVector[2];
-        console.log("hi2");
+     //   console.log("hi2");
         //console.log(dotProduct);
         let mag1 = Math.sqrt(incomDir[0]**2 + incomDir[1]**2 + incomDir[2]**2);
         let mag2 = Math.sqrt(playerVector[0]**2 + playerVector[1]**2 + playerVector[2]**2);
@@ -1588,8 +1627,8 @@ export class Maze extends Base_Scene {
 
        // console.log(cosAngle);
         let length = Math.round(50 * (cosAngle+1)) + 60;
-        console.log("Called");
-        console.log(length);
+     //   console.log("Called");
+     //  console.log(length);
         
         grenadeTimer = length;
         return length;
