@@ -408,6 +408,8 @@ class Base_Scene extends Scene {
             'body': new Capped_Cylinder(10, 10),
             'torch': new Cube(),
             'fire': new Subdivision_Sphere(3),
+            'ornaments': new Cube(),
+            'varied_orn': new Cube(),
 
 
 
@@ -423,14 +425,14 @@ class Base_Scene extends Scene {
             wall: new Material(new Textured_Phong_Normal_Map(),
                 {
                     ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#FFFFFF"),
-                    texture: new Texture("./assets/brickwall.jpg"),
-                    normal: new Texture("./assets/brickwall_normal.jpg")
+                    texture: new Texture("./assets/wall2.jpg"),
+                    normal: new Texture("./assets/wall3.jpg")
                 }),
             floor: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
                     ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
                     color: hex_color("#aaaaaa"),
-                    color_texture: new Texture("./assets/brickwall.jpg"),
+                    color_texture: new Texture("./assets/wall2.jpg"),
                     light_depth_texture: null
                 }),
             environment: new Material(new Shadow_Textured_Phong_Shader(1),
@@ -440,9 +442,10 @@ class Base_Scene extends Scene {
                     color_texture: new Texture("./assets/interstellar.jpg"),
                     light_depth_texture: null
                 }),
-            person: new Material(new Phong_Shader,
+            person: new Material(new Textured_Phong(),
                 {
-                    ambient: 1, diffusivity: 0.5, color: hex_color("#FFFFFF")
+                    ambient: 1, diffusivity: 0, specularity: 0, 
+                    texture: new Texture("./assets/blue.jpg"),
                 }),
             light_src: new Material(new Phong_Shader(), {
                 color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
@@ -519,6 +522,14 @@ class Base_Scene extends Scene {
                     ambient: 0.5, diffusivity: 1.0, specularity: 0.3,
                 }),
 
+            ornaments: new Material(new Textured_Phong(), {
+                ambient: 1, diffusivity: 0, specularity: 0.5,
+                texture: new Texture("./assets/ghost.jpg")
+            }),
+            varied_orn: new Material(new Textured_Phong(), {
+                ambient: 1, diffusivity: 0, specularity: 0.5,
+                texture: new Texture("./assets/fire_img.jpg")
+            })
 
         
 
@@ -861,6 +872,8 @@ export class Maze extends Base_Scene {
         return model_transform;
     }
 
+
+
     // draw the floor of the maze
     draw_floor(context, program_state, shadow_pass) {
         const floor_transformation = Mat4.identity()
@@ -880,6 +893,34 @@ export class Maze extends Base_Scene {
         }
 
     }
+
+    // Define draw_ornaments function
+    draw_ornaments(context, program_state, x, y, z) {
+        // Assuming the ornament shape and material are properly defined and accessible
+        let ornament_transformation = Mat4.identity()
+            .times(Mat4.translation(x, y, z))
+            .times(Mat4.scale(0.2, 0.2, 0.2)); // Increase scale for larger cube
+
+        // Draw ornament
+        this.shapes.ornaments.draw(
+            context, program_state,
+            ornament_transformation,
+            this.materials.ornaments);
+    }
+
+    draw_varied_orn(context, program_state, x, y, z) {
+        let varied_orn_transformation = Mat4.identity()
+            .times(Mat4.translation(x, y, z))
+            .times(Mat4.scale(0.2, 0.2, 0.2)); // Increase scale for larger cube
+
+        // Draw ornament
+        this.shapes.varied_orn.draw(
+            context, program_state,
+            varied_orn_transformation,
+            this.materials.varied_orn);
+    }
+
+
 
     draw_torch(context, program_state, x, y, z) {
         if (x === 0 || x >= 20 || z === 0 || z >= 14) {
@@ -1252,6 +1293,25 @@ export class Maze extends Base_Scene {
                 .times(Mat4.scale(1, scale_factor, 1)); 
             if (i % 2 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
         }
+
+        for (let i = 0; i < 40; i++) {
+            if (i%2 == 0){
+                this.draw_ornaments(context, program_state, i, 1, -0.9);
+            } else {
+                this.draw_varied_orn(context, program_state, i, 1, -0.9);
+            }
+        }
+
+        for (let j = 0; j < 40; j++) {
+            if (j%2 == 0) {
+                this.draw_varied_orn(context, program_state, 0.9, 1, -3 - j);
+            }
+            else {
+                this.draw_ornaments(context, program_state, 0.9, 1, -3 - j);
+            }
+            
+        }
+        
 
 
         this.draw_person(context, program_state);
