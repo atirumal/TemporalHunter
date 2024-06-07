@@ -877,26 +877,11 @@ export class Maze extends Base_Scene {
             .times(Mat4.translation(20, -1, -10))
             .times(Mat4.scale(20, 0.2, 20));
         const sphere_transformation = Mat4.identity().times(Mat4.translation(17,0,-10)).times(Mat4.scale(1000,1000,1000));
-     //   this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
+       this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
         this.shapes.sphere.draw(context, program_state, sphere_transformation, this.materials.environment);
         
         
-        const small_cube_size = 5; // Size of the small cubes
-        const floor_width = 40; // Total width of the floor (20*2)
-        const floor_depth = 40; // Total depth of the floor (20*2)
-        const floor_height = 0.2; // Height of the floor
-
-        const startX = -floor_width / 2 + small_cube_size / 2; // Start position X
-        const startZ = -floor_depth / 2 + small_cube_size / 2; // Start position Z
-
-        for (let x = startX; x < floor_width / 2; x += small_cube_size) {
-            for (let z = startZ; z < floor_depth / 2; z += small_cube_size) {
-                const cube_transform = Mat4.identity()
-                    .times(Mat4.translation(x + 20, -1, z - 10)) // Adjust translation based on floor position
-                    .times(Mat4.scale(small_cube_size / 2, floor_height, small_cube_size / 2));
-                this.shapes.cube.draw(context, program_state, cube_transform, shadow_pass ? this.materials.floor : this.materials.pure);
-            }
-        }
+    
     }
 
     // draw the player character in the maze
