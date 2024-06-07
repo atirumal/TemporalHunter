@@ -583,6 +583,9 @@ export class Maze extends Base_Scene {
             }
             res.push(resc);
         }
+
+        this.has_won = false;
+
         this.map_plane = res // stores projected 2d coords of maze walls
         this.proj = null;
         this.projList = [];
@@ -756,10 +759,15 @@ export class Maze extends Base_Scene {
 
     // check if the player's new position (after movement) collides with the goal position
     check_winning_condition(new_person_location_tips) { // take in the projected 2D coordinates of the player's new position
+        if (this.has_won) {
+            return false; // If the game is already won, skip the check
+        }
+
         if (this.box_collide_2d(
             new_person_location_tips,
             this.get_wall_brick_box_tips(this.goal_position) // use box_collide_2d method to check if the player's new position collides with the goal position
         )) {
+            this.has_won = true;
             if (confirm("You won! Click 'OK' to restart.")) {
                 location.reload();
             }
@@ -961,14 +969,19 @@ export class Maze extends Base_Scene {
         
         // Box rendering:
         // iterate over each box coordinate in this.box_coord
+        const scale_factor = 2; // Adjust this factor to change the height
         for (let i = 0; i < this.box_coord.length; i++) {
-            const x = original_box_size * this.box_coord[i][0]; // calculate the coordinates (x, y, z) of each box based on original_box_size
+            const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
-            box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z); // call draw_box function to obtain the model transformation for the current box
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.floor : this.materials.pure); // draw a cube representing a wall using the shapes.cube object
             
+            // Apply the scaling transformation
+            box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
+                .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
+            
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.floor : this.materials.pure);
         }
+
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
         this.init_crosshair_canvas();
     }
@@ -1200,13 +1213,18 @@ export class Maze extends Base_Scene {
         program_state.projection_transform = Mat4.perspective(Math.PI / 2.5, context.width / context.height, 0.01, 10000);
         this.render_scene(context, program_state, true, true, true);
 
+        const scale_factor = 2; // Adjust this factor to change the height
         let model_transform = Mat4.identity();
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
-            model_transform = this.draw_box(context, program_state, model_transform, x, y, z);
+
+            // Apply the scaling transformation
+            model_transform = this.draw_box(context, program_state, model_transform, x, y, z)
+                .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
         }
+
 
         this.draw_person(context, program_state);
         this.draw_chest(context, program_state);
@@ -1880,6 +1898,9 @@ export class Maze extends Base_Scene {
         let ok = true;
 
         ok = ok && this.check_person_colliding_wall(new_person_location_tips);
+        if (!this.has_won) { // Only check the winning condition if the game is not already won
+            ok = ok && this.check_winning_condition(new_person_location_tips);
+        }
         if(!ok){
             //this.matrix().post_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
             //this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
