@@ -1810,9 +1810,9 @@ export class Maze extends Base_Scene {
         ];
 
         const sideMovement = [
-            perpendicularDirection[0] * this.thrust[0],
+            perpendicularDirection[0] * this.thrust[0] * 1.5,
             0,
-            perpendicularDirection[2] * this.thrust[0]
+            perpendicularDirection[2] * this.thrust[0] * 1.5
         ];
 
         if(this.jumpBool){
