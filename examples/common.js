@@ -189,9 +189,10 @@ const Tetrahedron = defs.Tetrahedron =
 
             // Flatten the arrays and add to shape
             this.arrays.position = Vector.cast(...positions);
+            
             this.arrays.normal = Vector.cast(...normals);
             this.arrays.texture_coord = Vector.cast(...texture_coords);
-
+           
             for (let i = 0; i < positions.length; i += 3) {
                 indices.push(i, i + 1, i + 2);
             }
