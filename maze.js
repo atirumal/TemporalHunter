@@ -428,11 +428,25 @@ class Base_Scene extends Scene {
                     texture: new Texture("./assets/wall2.jpg"),
                     normal: new Texture("./assets/wall3.jpg")
                 }),
-            floor: new Material(new Shadow_Textured_Phong_Shader(1),
+            wallNew: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
                     ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
                     color: hex_color("#aaaaaa"),
                     color_texture: new Texture("./assets/wall2.jpg"),
+                    light_depth_texture: null
+                }),
+            floor: new Material(new Shadow_Textured_Phong_Shader(1),
+                {
+                    ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
+                    color: hex_color("#aaaaaa"),
+                    color_texture: new Texture("./assets/sand2.jpg"),
+                    light_depth_texture: null
+                }),
+            lava: new Material(new Shadow_Textured_Phong_Shader(1),
+                {
+                    ambient: 0.7, diffusivity: 0.3, specularity: 0.9,
+                    color: hex_color("#aaaaaa"),
+                    color_texture: new Texture("./assets/lava.jpg"),
                     light_depth_texture: null
                 }),
             environment: new Material(new Shadow_Textured_Phong_Shader(1),
@@ -1081,7 +1095,7 @@ export class Maze extends Base_Scene {
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
                 .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
             
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wallNew : this.materials.pure);
         }
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
@@ -1092,7 +1106,7 @@ export class Maze extends Base_Scene {
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
                 .times(Mat4.translation(0, 2, 0)); // Scale only the y dimension
             
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wallNew : this.materials.pure);
         }
 
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
