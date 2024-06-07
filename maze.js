@@ -615,6 +615,8 @@ export class Maze extends Base_Scene {
         this.enemyParticleSystem;
         this.flashGrenadeTimer = 0;
         this.needsFlash = false;
+        this.player_transform_exists = false;
+        this.player_transform;
     }
 
 
@@ -857,7 +859,11 @@ export class Maze extends Base_Scene {
     // draw the player character in the maze
     draw_person(context, program_state) {
         program_state.set_camera(this.camera_transformation) // sets the camera transformation to the current camera transformation
-       // this.shapes.person.draw(context, program_state, this.person_transformation, this.materials.person); // draw the player character shape using its transformation (person_transformation) and material
+        if(this.player_transform_exists){
+            const here = Mat4.identity().times(Mat4.translation(this.player_transform[0], -1, this.player_transform[2])).times(Mat4.scale(0.5,0.5,0.5));
+            this.shapes.person.draw(context, program_state, here, this.materials.person); // draw the player character shape using its transformation (person_transformation) and material
+        }
+
     }
 
 
@@ -1684,6 +1690,17 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
         this.key_triggered_button("Flash Demo", ["f"], () => this.needsFlash = !this.needsFlash);
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
+        this.key_triggered_button("Teleport", ["c"], () => {
+            if(this.player_transform_exists){
+                this.camPosition = vec3(this.player_transform[0], 0.8, this.player_transform[2]);
+                this.player_transform_exists = false;
+            }
+            else{
+                this.player_transform_exists = true;
+                this.player_transform = vec3(this.camPosition[0], -1, this.camPosition[2]);
+            }
+        
+        })
         this.key_triggered_button("Spawn Grenade", ["g"], () => {
             this.grenadeList.push(new Grenade(this.camPosition, this.lookatpoint, this.smokeList, this.make_new_smoke, false, 10));
         });        
