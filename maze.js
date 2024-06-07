@@ -410,6 +410,9 @@ class Base_Scene extends Scene {
             'body': new Capped_Cylinder(10, 10),
             'torch': new Cube(),
             'fire': new Subdivision_Sphere(3),
+            'ornaments': new Cube(),
+            'varied_orn': new Cube(),
+
             'tetra': new Arrow(false),
 
 
@@ -425,15 +428,28 @@ class Base_Scene extends Scene {
             wall: new Material(new Textured_Phong_Normal_Map(),
                 {
                     ambient: 0.2, diffusivity: 0.3, specularity: 0.3, color: hex_color("#FFFFFF"),
-                    texture: new Texture("./assets/brickwall.jpg"),
-                    normal: new Texture("./assets/brickwall_normal.jpg")
+                    texture: new Texture("./assets/wall2.jpg"),
+                    normal: new Texture("./assets/wall3.jpg")
+                }),
+            wallNew: new Material(new Shadow_Textured_Phong_Shader(1),
+                {
+                    ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
+                    color: hex_color("#aaaaaa"),
+                    color_texture: new Texture("./assets/wall2.jpg"),
+                    light_depth_texture: null
                 }),
             floor: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
                     ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
                     color: hex_color("#aaaaaa"),
                     color_texture: new Texture("./assets/sand2.jpg"),
-                    //color_texture: new Texture("./assets/floor3.webp"),
+                    light_depth_texture: null
+                }),
+            lava: new Material(new Shadow_Textured_Phong_Shader(1),
+                {
+                    ambient: 0.7, diffusivity: 0.3, specularity: 0.9,
+                    color: hex_color("#aaaaaa"),
+                    color_texture: new Texture("./assets/lava.jpg"),
                     light_depth_texture: null
                 }),
             environment: new Material(new Shadow_Textured_Phong_Shader(1),
@@ -443,17 +459,10 @@ class Base_Scene extends Scene {
                     color_texture: new Texture("./assets/interstellar.jpg"),
                     light_depth_texture: null
                 }),
-
-            wall2: new Material(new Shadow_Textured_Phong_Shader(1),
-            {
-                ambient: 0.3, diffusivity: 0.2, specularity: 0.4,
-                color: hex_color("#aaaaaa"),
-                color_texture: new Texture("./assets/brickwall.jpg"),
-                light_depth_texture: null
-            }),
-            person: new Material(new Phong_Shader,
+            person: new Material(new Textured_Phong(),
                 {
-                    ambient: 1, diffusivity: 0.5, color: hex_color("#FFFFFF")
+                    ambient: 1, diffusivity: 0, specularity: 0, 
+                    texture: new Texture("./assets/blue.jpg"),
                 }),
             light_src: new Material(new Phong_Shader(), {
                 color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
@@ -530,6 +539,14 @@ class Base_Scene extends Scene {
                     ambient: 0.5, diffusivity: 1.0, specularity: 0.3,
                 }),
 
+            ornaments: new Material(new Textured_Phong(), {
+                ambient: 1, diffusivity: 0, specularity: 0.5,
+                texture: new Texture("./assets/ghost.jpg")
+            }),
+            varied_orn: new Material(new Textured_Phong(), {
+                ambient: 1, diffusivity: 0, specularity: 0.5,
+                texture: new Texture("./assets/fire_img.jpg")
+            })
 
         
 
@@ -560,6 +577,36 @@ class Base_Scene extends Scene {
         this.treasure_base_transform = Mat4.translation(...this.goal_position)
             .times(Mat4.scale(0.5, 0.5, 0.5)); // transformation for the treasure
         this.bullet_transform = Mat4.translation(0,1,-5).times(this.camera_transformation).times(Mat4.scale(0.8,0.8,0.8));
+        this.dead = false;
+        this.canDie = true;
+        this.lavaBlocks = [
+          
+            
+            [20.5,-6],
+            [12,-12],
+            [10.6,-12],
+            [6.8,-22],
+            [12,-19],
+            [12,-21],
+            [10.6,-21],
+            [10.6,-19],
+            [12,-2],
+            [10.6,-2],
+            [5.2,-7],
+            [6.6,-7],
+            [34,-2],
+            [34,-6],
+            [34,-26],
+            [24,-14],
+            [30,-14],
+            [28,-9.5],
+   
+            [20,-20],
+            [21.4,-20],
+            [1.15,-19],
+            [2.2,-19],
+            [38,-16],
+          ];
     }
 
     display(context, program_state) {
@@ -878,6 +925,8 @@ export class Maze extends Base_Scene {
         return model_transform;
     }
 
+
+
     // draw the floor of the maze
     draw_floor(context, program_state, shadow_pass) {
         
@@ -901,6 +950,34 @@ export class Maze extends Base_Scene {
         }
 
     }
+
+    // Define draw_ornaments function
+    draw_ornaments(context, program_state, x, y, z) {
+        // Assuming the ornament shape and material are properly defined and accessible
+        let ornament_transformation = Mat4.identity()
+            .times(Mat4.translation(x, y, z))
+            .times(Mat4.scale(0.2, 0.2, 0.2)); // Increase scale for larger cube
+
+        // Draw ornament
+        this.shapes.ornaments.draw(
+            context, program_state,
+            ornament_transformation,
+            this.materials.ornaments);
+    }
+
+    draw_varied_orn(context, program_state, x, y, z) {
+        let varied_orn_transformation = Mat4.identity()
+            .times(Mat4.translation(x, y, z))
+            .times(Mat4.scale(0.2, 0.2, 0.2)); // Increase scale for larger cube
+
+        // Draw ornament
+        this.shapes.varied_orn.draw(
+            context, program_state,
+            varied_orn_transformation,
+            this.materials.varied_orn);
+    }
+
+
 
     draw_torch(context, program_state, x, y, z) {
         if (x === 0 || x >= 20 || z === 0 || z >= 14) {
@@ -1027,7 +1104,7 @@ export class Maze extends Base_Scene {
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
                 .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
             
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wallNew : this.materials.pure);
         }
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
@@ -1038,7 +1115,7 @@ export class Maze extends Base_Scene {
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
                 .times(Mat4.translation(0, 2, 0)); // Scale only the y dimension
             
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wallNew : this.materials.pure);
         }
 
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
@@ -1123,7 +1200,7 @@ export class Maze extends Base_Scene {
             playerLoc[2] - e.position[2]
         );
 
-        let dirVec = this.shift(dir,-3,3);
+        let dirVec = this.shift(dir,-5,5);
 
         const proj = new Projectile(this.proj_transf, 8, dirVec, true, e.position);
         this.projList.push(proj);
@@ -1132,6 +1209,17 @@ export class Maze extends Base_Scene {
 
        
         
+    }
+
+    draw_lava(context, program_state){
+        
+        for(const [x,z] of this.lavaBlocks){
+            let lava_transform = Mat4.identity()
+            .times(Mat4.translation(x, -1.3, z))
+            .times(Mat4.scale(0.7,0.6,1));
+            this.shapes.cube.draw(context, program_state, lava_transform, this.materials.lava);
+        }
+      
     }
 
 
@@ -1185,6 +1273,25 @@ export class Maze extends Base_Scene {
         ctx.restore();
 
     }
+
+    funDead(){
+        if(!this.canDie){
+            return;
+        }
+        if(!this.dead){
+            this.dead = true;
+            if (confirm("You died. Click 'OK' to restart.")) {
+                location.reload();
+            }
+            else{
+                location.reload();
+            }
+        }
+        
+
+    }
+
+
 
     display(context, program_state, dt = program_state.animation_delta_time / 700) {
 
@@ -1285,16 +1392,44 @@ export class Maze extends Base_Scene {
             if (i % 2 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
         }
 
+        for (let i = 0; i < 40; i++) {
+            if (i%2 == 0){
+                this.draw_ornaments(context, program_state, i, 1, -0.9);
+            } else {
+                this.draw_varied_orn(context, program_state, i, 1, -0.9);
+            }
+        }
+
+        for (let j = 0; j < 40; j++) {
+            if (j%2 == 0) {
+                this.draw_varied_orn(context, program_state, 0.9, 1, -3 - j);
+            }
+            else {
+                this.draw_ornaments(context, program_state, 0.9, 1, -3 - j);
+            }
+            
+        }
+        
+
 
         this.draw_person(context, program_state);
         this.draw_chest(context, program_state);
+        this.draw_lava(context, program_state);
 
         if(t == 0){
             let e1 = new Enemy(vec3(2+15,1,-2));
             this.enemyList.push(e1);
             let e2 = new Enemy(vec3(11.1,0.8,-13.4));
             this.enemyList.push(e2);
+            let e4 = new Enemy(vec3(12.1,0.8,-12.4));
+            this.enemyList.push(e4);
+            let e3 = new Enemy(vec3(12.1,0.8,-19.4));
+            this.enemyList.push(e3);
 
+            let e5 = new Enemy(vec3(22,0.8,-13.4));
+            this.enemyList.push(e5);
+            let e6 = new Enemy(vec3(20,0.8,-19.4));
+            this.enemyList.push(e6);
         }
 
         for(let e of this.enemyList){
@@ -1356,7 +1491,7 @@ export class Maze extends Base_Scene {
         
                     e.health -= 1;
                     e.damageTimer = 5;
-                    e.cooldownTimer = 40;
+                    e.cooldownTimer = 20;
                     if(e.health == 0){
                         this.enemyKill = vec3(e.position[0],e.position[1]-1.5,e.position[2]);
                         this.enemyParticleSystem = new ParticleSystem(this.enemyKill, 2);
@@ -1367,13 +1502,8 @@ export class Maze extends Base_Scene {
         }
         for(let p of this.projList){
             if(p.evil && this.check_bad_bullet_collision(p,1)){
-                this.projList = [];
-                if (confirm("You died. Click 'OK' to restart.")) {
-                    location.reload();
-                }
-                else{
-                    location.reload();
-                }
+               
+                this.funDead();
                 
             }
         }
@@ -1400,14 +1530,18 @@ export class Maze extends Base_Scene {
             let enemyPos = this.get_enemy_box_tips(e.position);
             let personPos = this.get_person_box_tips(this.person_location);
             if(this.box_collide_2d(personPos, enemyPos)){
-                e.health = 0;
-                this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
-                if (confirm("You died. Click 'OK' to restart.")) {
-                    location.reload();
-                }
-                else{
-                    location.reload();
-                }
+              
+               this.funDead();
+            }
+        }
+
+        //collision between human and lava
+        for(const [x,z] of this.lavaBlocks){
+            let personPos = this.camPosition;
+            
+            let dist = (personPos[0]-x)**2 + (personPos[2]-z)**2;
+            if(dist < 1 && personPos[1] <= 0.83){
+                this.funDead();
             }
         }
 
@@ -1779,6 +1913,7 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
         this.key_triggered_button("Flash Demo", ["f"], () => this.needsFlash = !this.needsFlash);
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
+        this.key_triggered_button("No Death Demo", ["p"], () => this.canDie = !this.canDie);
         this.key_triggered_button("Teleport", ["c"], () => {
             if(this.player_transform_exists){
                 this.camPosition = vec3(this.player_transform[0], 0.8, this.player_transform[2]);
@@ -1795,19 +1930,20 @@ export class Maze extends Base_Scene {
         });        
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
-        this.key_triggered_button("-", ["o"], () =>
-            this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
-        this.live_string(box => {
-            box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
-        }, speed_controls);
-        this.key_triggered_button("+", ["p"], () =>
-            this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
-        this.new_line();
-        this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
-        this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
-        this.new_line();
-        //this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
-        this.new_line();
+       // this.key_triggered_button("-", ["o"], () =>
+          //  this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
+       // this.live_string(box => {
+          //  box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
+       // }, speed_controls);
+      //  this.key_triggered_button("+", ["p"], () =>
+          //  this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
+      //  this.new_line();
+      //  this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
+      //  this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
+      //  this.new_line();
+     //   //this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
+      //  this.new_line();
+      /*
         this.key_triggered_button("Go to world origin", ["r"], () => {
             this.matrix().set_identity(4, 4);
             this.inverse().set_identity(4, 4)
@@ -1837,6 +1973,7 @@ export class Maze extends Base_Scene {
                 this.will_take_over_graphics_state = true
             }, "#8B8885");
         this.new_line();
+        */
     }
 
     first_person_flyaround(radians_per_frame, meters_per_frame, program_state, leeway = 0) {
