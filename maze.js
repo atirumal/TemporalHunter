@@ -1550,7 +1550,7 @@ export class Maze extends Base_Scene {
             let updater = !this.freeze || (this.freeze && anyMovement)
             a.render(context, program_state, this.shapes, this.materials.person, updater);
             if(a.check_collision(this.camPosition)){
-                //this.fun
+                this.funDead();
             }
         })
         
