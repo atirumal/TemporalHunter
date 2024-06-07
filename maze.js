@@ -434,6 +434,13 @@ class Base_Scene extends Scene {
                     //color_texture: new Texture("./assets/floor3.webp"),
                     light_depth_texture: null
                 }),
+            lava: new Material(new Shadow_Textured_Phong_Shader(1),
+                {
+                    ambient: 0.7, diffusivity: 0.3, specularity: 0.9,
+                    color: hex_color("#aaaaaa"),
+                    color_texture: new Texture("./assets/lava.jpg"),
+                    light_depth_texture: null
+                }),
             environment: new Material(new Shadow_Textured_Phong_Shader(1),
                 {
                     ambient: 1, diffusivity: 0, specularity: 1,
@@ -558,6 +565,36 @@ class Base_Scene extends Scene {
         this.treasure_base_transform = Mat4.translation(...this.goal_position)
             .times(Mat4.scale(0.5, 0.5, 0.5)); // transformation for the treasure
         this.bullet_transform = Mat4.translation(0,1,-5).times(this.camera_transformation).times(Mat4.scale(0.8,0.8,0.8));
+        this.dead = false;
+        this.canDie = true;
+        this.lavaBlocks = [
+          
+            
+            [20.5,-6],
+            [12,-12],
+            [10.6,-12],
+            [6.8,-22],
+            [12,-19],
+            [12,-21],
+            [10.6,-21],
+            [10.6,-19],
+            [12,-2],
+            [10.6,-2],
+            [5.2,-7],
+            [6.6,-7],
+            [34,-2],
+            [34,-6],
+            [34,-26],
+            [24,-14],
+            [30,-14],
+            [28,-9.5],
+   
+            [20,-20],
+            [21.4,-20],
+            [1.15,-19],
+            [2.2,-19],
+            [38,-16],
+          ];
     }
 
     display(context, program_state) {
@@ -1115,7 +1152,7 @@ export class Maze extends Base_Scene {
             playerLoc[2] - e.position[2]
         );
 
-        let dirVec = this.shift(dir,-3,3);
+        let dirVec = this.shift(dir,-5,5);
 
         const proj = new Projectile(this.proj_transf, 8, dirVec, true, e.position);
         this.projList.push(proj);
@@ -1124,6 +1161,17 @@ export class Maze extends Base_Scene {
 
        
         
+    }
+
+    draw_lava(context, program_state){
+        
+        for(const [x,z] of this.lavaBlocks){
+            let lava_transform = Mat4.identity()
+            .times(Mat4.translation(x, -1.3, z))
+            .times(Mat4.scale(0.7,0.6,1));
+            this.shapes.cube.draw(context, program_state, lava_transform, this.materials.lava);
+        }
+      
     }
 
 
@@ -1177,6 +1225,25 @@ export class Maze extends Base_Scene {
         ctx.restore();
 
     }
+
+    funDead(){
+        if(!this.canDie){
+            return;
+        }
+        if(!this.dead){
+            this.dead = true;
+            if (confirm("You died. Click 'OK' to restart.")) {
+                location.reload();
+            }
+            else{
+                location.reload();
+            }
+        }
+        
+
+    }
+
+
 
     display(context, program_state, dt = program_state.animation_delta_time / 700) {
 
@@ -1280,6 +1347,7 @@ export class Maze extends Base_Scene {
 
         this.draw_person(context, program_state);
         this.draw_chest(context, program_state);
+        this.draw_lava(context, program_state);
 
         if(t == 0){
             let e1 = new Enemy(vec3(2+15,1,-2));
@@ -1348,7 +1416,7 @@ export class Maze extends Base_Scene {
         
                     e.health -= 1;
                     e.damageTimer = 5;
-                    e.cooldownTimer = 40;
+                    e.cooldownTimer = 20;
                     if(e.health == 0){
                         this.enemyKill = vec3(e.position[0],e.position[1]-1.5,e.position[2]);
                         this.enemyParticleSystem = new ParticleSystem(this.enemyKill, 2);
@@ -1360,12 +1428,7 @@ export class Maze extends Base_Scene {
         for(let p of this.projList){
             if(p.evil && this.check_bad_bullet_collision(p,1)){
                 this.projList = [];
-                if (confirm("You died. Click 'OK' to restart.")) {
-                    location.reload();
-                }
-                else{
-                    location.reload();
-                }
+                this.funDead();
                 
             }
         }
@@ -1392,12 +1455,17 @@ export class Maze extends Base_Scene {
             if(this.box_collide_2d(personPos, enemyPos)){
                 e.health = 0;
                 this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
-                if (confirm("You died. Click 'OK' to restart.")) {
-                    location.reload();
-                }
-                else{
-                    location.reload();
-                }
+               this.funDead();
+            }
+        }
+
+        //collision between human and lava
+        for(const [x,z] of this.lavaBlocks){
+            let personPos = this.camPosition;
+            
+            let dist = (personPos[0]-x)**2 + (personPos[2]-z)**2;
+            if(dist < 1 && personPos[1] <= 0.83){
+                this.funDead();
             }
         }
         
@@ -1760,6 +1828,7 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
         this.key_triggered_button("Flash Demo", ["f"], () => this.needsFlash = !this.needsFlash);
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
+        this.key_triggered_button("No Death Demo", ["p"], () => this.canDie = !this.canDie);
         this.key_triggered_button("Teleport", ["c"], () => {
             if(this.player_transform_exists){
                 this.camPosition = vec3(this.player_transform[0], 0.8, this.player_transform[2]);
@@ -1776,19 +1845,20 @@ export class Maze extends Base_Scene {
         });        
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
-        this.key_triggered_button("-", ["o"], () =>
-            this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
-        this.live_string(box => {
-            box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
-        }, speed_controls);
-        this.key_triggered_button("+", ["p"], () =>
-            this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
-        this.new_line();
-        this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
-        this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
-        this.new_line();
-        //this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
-        this.new_line();
+       // this.key_triggered_button("-", ["o"], () =>
+          //  this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
+       // this.live_string(box => {
+          //  box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
+       // }, speed_controls);
+      //  this.key_triggered_button("+", ["p"], () =>
+          //  this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
+      //  this.new_line();
+      //  this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
+      //  this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
+      //  this.new_line();
+     //   //this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
+      //  this.new_line();
+      /*
         this.key_triggered_button("Go to world origin", ["r"], () => {
             this.matrix().set_identity(4, 4);
             this.inverse().set_identity(4, 4)
@@ -1818,6 +1888,7 @@ export class Maze extends Base_Scene {
                 this.will_take_over_graphics_state = true
             }, "#8B8885");
         this.new_line();
+        */
     }
 
     first_person_flyaround(radians_per_frame, meters_per_frame, program_state, leeway = 0) {
