@@ -88,22 +88,22 @@ const Tetrahedron = defs.Tetrahedron =
             if (!using_flat_shading) {
                 // Method 1:  A tetrahedron with shared vertices.  Compact, performs better,
                 // but can't produce flat shading or discontinuous seams in textures.
-                this.arrays.position = Vec.cast([0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-                this.arrays.normal = Vec.cast([-a, -a, -a], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-                this.arrays.texture_coord = Vec.cast([0, 0], [1, 0], [0, 1,], [1, 1]);
+                this.arrays.position = Vector.cast([0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+                this.arrays.normal = Vector.cast([-a, -a, -a], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+                this.arrays.texture_coord = Vector.cast([0, 0], [1, 0], [0, 1,], [1, 1]);
                 // Notice the repeats in the index list.  Vertices are shared
                 // and appear in multiple triangles with this method.
                 this.indices.push(0, 1, 2, 0, 1, 3, 0, 2, 3, 1, 2, 3);
             } else {
                 // Method 2:  A tetrahedron with four independent triangles.
-                this.arrays.position = Vec.cast([0, 0, 0], [1, 0, 0], [0, 1, 0],
+                this.arrays.position = Vector.cast([0, 0, 0], [1, 0, 0], [0, 1, 0],
                     [0, 0, 0], [1, 0, 0], [0, 0, 1],
                     [0, 0, 0], [0, 1, 0], [0, 0, 1],
                     [0, 0, 1], [1, 0, 0], [0, 1, 0]);
 
                 // The essence of flat shading:  This time, values of normal vectors can
                 // be constant per whole triangle.  Repeat them for all three vertices.
-                this.arrays.normal = Vec.cast([0, 0, -1], [0, 0, -1], [0, 0, -1],
+                this.arrays.normal = Vector.cast([0, 0, -1], [0, 0, -1], [0, 0, -1],
                     [0, -1, 0], [0, -1, 0], [0, -1, 0],
                     [-1, 0, 0], [-1, 0, 0], [-1, 0, 0],
                     [a, a, a], [a, a, a], [a, a, a]);
@@ -112,7 +112,7 @@ const Tetrahedron = defs.Tetrahedron =
                 // image is mapped onto each face).  We couldn't do this with shared
                 // vertices since this features abrupt transitions when approaching the
                 // same point from different directions.
-                this.arrays.texture_coord = Vec.cast([0, 0], [1, 0], [1, 1],
+                this.arrays.texture_coord = Vector.cast([0, 0], [1, 0], [1, 1],
                     [0, 0], [1, 0], [1, 1],
                     [0, 0], [1, 0], [1, 1],
                     [0, 0], [1, 0], [1, 1]);
@@ -121,6 +121,199 @@ const Tetrahedron = defs.Tetrahedron =
             }
         }
     }
+
+    const Arrow = defs.Arrow =
+    class Arrow extends Shape {
+        constructor(using_flat_shading) {
+            super("position", "normal", "texture_coord");
+
+            // Define the arrow components
+            const arrowheadLength = 0.5;
+            const arrowheadWidth = 0.1;
+            const shaftLength = 2.0;
+            const shaftRadius = 0.05;
+
+            const positions = [], normals = [], texture_coords = [], indices = [];
+
+            // Arrow shaft (cylinder)
+            const numSegments = 40; // More segments for more detail
+            for (let i = 0; i < numSegments; i++) {
+                const theta = 2 * Math.PI * i / numSegments;
+                const nextTheta = 2 * Math.PI * (i + 1) / numSegments;
+
+                const x1 = Math.cos(theta) * shaftRadius;
+                const y1 = Math.sin(theta) * shaftRadius;
+                const x2 = Math.cos(nextTheta) * shaftRadius;
+                const y2 = Math.sin(nextTheta) * shaftRadius;
+
+                // Bottom cap
+                positions.push([x1, y1, 0], [x2, y2, 0], [0, 0, 0]);
+                normals.push([0, 0, -1], [0, 0, -1], [0, 0, -1]);
+                texture_coords.push([i / numSegments, 0], [(i + 1) / numSegments, 0], [0.5, 0.5]);
+
+                // Top cap
+                positions.push([x1, y1, shaftLength], [x2, y2, shaftLength], [0, 0, shaftLength]);
+                normals.push([0, 0, 1], [0, 0, 1], [0, 0, 1]);
+                texture_coords.push([i / numSegments, 1], [(i + 1) / numSegments, 1], [0.5, 0.5]);
+
+                // Side faces
+                positions.push([x1, y1, 0], [x2, y2, 0], [x1, y1, shaftLength], [x2, y2, shaftLength]);
+                normals.push([x1, y1, 0], [x2, y2, 0], [x1, y1, 0], [x2, y2, 0]);
+                texture_coords.push([i / numSegments, 0], [(i + 1) / numSegments, 0], [i / numSegments, 1], [(i + 1) / numSegments, 1]);
+            }
+
+            // Arrowhead (cone)
+            for (let i = 0; i < numSegments; i++) {
+                const theta = 2 * Math.PI * i / numSegments;
+                const nextTheta = 2 * Math.PI * (i + 1) / numSegments;
+
+                const x1 = Math.cos(theta) * arrowheadWidth;
+                const y1 = Math.sin(theta) * arrowheadWidth;
+                const x2 = Math.cos(nextTheta) * arrowheadWidth;
+                const y2 = Math.sin(nextTheta) * arrowheadWidth;
+
+                // Base of the arrowhead
+                positions.push([x1, y1, shaftLength], [x2, y2, shaftLength], [0, 0, shaftLength]);
+                normals.push([0, 0, -1], [0, 0, -1], [0, 0, -1]);
+                texture_coords.push([i / numSegments, 1], [(i + 1) / numSegments, 1], [0.5, 0.5]);
+
+                // Sides of the arrowhead
+                const nx = (x1 + x2) / 2;
+                const ny = (y1 + y2) / 2;
+                const nz = Math.sqrt(nx * nx + ny * ny);
+
+                positions.push([x1, y1, shaftLength], [x2, y2, shaftLength], [0, 0, shaftLength + arrowheadLength]);
+                normals.push([nx, ny, nz], [nx, ny, nz], [nx, ny, nz]);
+                texture_coords.push([i / numSegments, 1], [(i + 1) / numSegments, 1], [0.5, 0.5]);
+            }
+
+            // Flatten the arrays and add to shape
+            this.arrays.position = Vector.cast(...positions);
+            this.arrays.normal = Vector.cast(...normals);
+            this.arrays.texture_coord = Vector.cast(...texture_coords);
+
+            for (let i = 0; i < positions.length; i += 3) {
+                indices.push(i, i + 1, i + 2);
+            }
+            this.indices = indices;
+        }
+    }
+
+    const Plant = defs.Plant =
+    class Plant extends Shape {
+        constructor() {
+            super("position", "normal", "texture_coord");
+
+            const positions = [], normals = [], texture_coords = [], indices = [];
+
+            // Car body (rectangular prism)
+            const bodyLength = 2.0;
+            const bodyWidth = 1.0;
+            const bodyHeight = 0.5;
+
+            const bodyPositions = [
+                // Front face
+                [-bodyLength/2, -bodyWidth/2, -bodyHeight/2], [bodyLength/2, -bodyWidth/2, -bodyHeight/2], [bodyLength/2, bodyWidth/2, -bodyHeight/2],
+                [-bodyLength/2, -bodyWidth/2, -bodyHeight/2], [bodyLength/2, bodyWidth/2, -bodyHeight/2], [-bodyLength/2, bodyWidth/2, -bodyHeight/2],
+
+                // Back face
+                [-bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, bodyHeight/2],
+                [-bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, bodyHeight/2], [-bodyLength/2, bodyWidth/2, bodyHeight/2],
+
+                // Top face
+                [-bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, -bodyWidth/2, -bodyHeight/2],
+                [-bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, -bodyWidth/2, -bodyHeight/2], [-bodyLength/2, -bodyWidth/2, -bodyHeight/2],
+
+                // Bottom face
+                [-bodyLength/2, bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, -bodyHeight/2],
+                [-bodyLength/2, bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, -bodyHeight/2], [-bodyLength/2, bodyWidth/2, -bodyHeight/2],
+
+                // Left face
+                [-bodyLength/2, -bodyWidth/2, bodyHeight/2], [-bodyLength/2, bodyWidth/2, bodyHeight/2], [-bodyLength/2, bodyWidth/2, -bodyHeight/2],
+                [-bodyLength/2, -bodyWidth/2, bodyHeight/2], [-bodyLength/2, bodyWidth/2, -bodyHeight/2], [-bodyLength/2, -bodyWidth/2, -bodyHeight/2],
+
+                // Right face
+                [bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, -bodyHeight/2],
+                [bodyLength/2, -bodyWidth/2, bodyHeight/2], [bodyLength/2, bodyWidth/2, -bodyHeight/2], [bodyLength/2, -bodyWidth/2, -bodyHeight/2],
+            ];
+            const bodyNormals = [
+                // Normals for each face
+                [0, 0, -1], [0, 0, -1], [0, 0, -1], [0, 0, -1], [0, 0, -1], [0, 0, -1],
+                [0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1],
+                [0, -1, 0], [0, -1, 0], [0, -1, 0], [0, -1, 0], [0, -1, 0], [0, -1, 0],
+                [0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0],
+                [-1, 0, 0], [-1, 0, 0], [-1, 0, 0], [-1, 0, 0], [-1, 0, 0], [-1, 0, 0],
+                [1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]
+            ];
+            const bodyTextureCoords = [
+                // Texture coordinates for each face
+                [0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1],
+                [0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1],
+                [0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1],
+                [0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1],
+                [0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1],
+                [0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]
+            ];
+            for (let i = 0; i < bodyPositions.length; i++) {
+                positions.push(bodyPositions[i]);
+                normals.push(bodyNormals[i]);
+                texture_coords.push(bodyTextureCoords[i]);
+            }
+
+            // Car wheels (cylinders)
+            const wheelRadius = 0.2;
+            const wheelWidth = 0.1;
+            const wheelPositions = [], wheelNormals = [], wheelTextureCoords = [];
+            const wheelOffsetX = bodyLength / 2 - wheelRadius;
+            const wheelOffsetY = bodyWidth / 2 + wheelWidth / 2;
+            const wheelOffsetZ = -bodyHeight / 2;
+
+            for (let j = 0; j < 4; j++) {
+                const offsetX = j < 2 ? -wheelOffsetX : wheelOffsetX;
+                const offsetY = j % 2 === 0 ? -wheelOffsetY : wheelOffsetY;
+                for (let i = 0; i < numSegments; i++) {
+                    const theta = 2 * Math.PI * i / numSegments;
+                    const nextTheta = 2 * Math.PI * (i + 1) / numSegments;
+
+                    const x1 = Math.cos(theta) * wheelRadius;
+                    const y1 = Math.sin(theta) * wheelRadius;
+                    const x2 = Math.cos(nextTheta) * wheelRadius;
+                    const y2 = Math.sin(nextTheta) * wheelRadius;
+
+                    // Side faces
+                    wheelPositions.push(
+                        [x1 + offsetX, wheelOffsetZ, y1 + offsetY], [x2 + offsetX, wheelOffsetZ, y2 + offsetY], [x1 + offsetX, wheelOffsetZ + wheelWidth, y1 + offsetY],
+                        [x2 + offsetX, wheelOffsetZ, y2 + offsetY], [x2 + offsetX, wheelOffsetZ + wheelWidth, y2 + offsetY], [x1 + offsetX, wheelOffsetZ + wheelWidth, y1 + offsetY]
+                    );
+                    wheelNormals.push(
+                        [x1, 0, y1], [x2, 0, y2], [x1, 0, y1], [x2, 0, y2], [x2, 0, y2], [x1, 0, y1]
+                    );
+                    wheelTextureCoords.push(
+                        [i / numSegments, 0], [(i + 1) / numSegments, 0], [i / numSegments, 1],
+                        [(i + 1) / numSegments, 0], [(i + 1) / numSegments, 1], [i / numSegments, 1]
+                    );
+                }
+            }
+
+            for (let i = 0; i < wheelPositions.length; i++) {
+                positions.push(wheelPositions[i]);
+                normals.push(wheelNormals[i]);
+                texture_coords.push(wheelTextureCoords[i]);
+            }
+
+            // Flatten the arrays and add to shape
+            this.arrays.position = Vector.cast(...positions);
+            this.arrays.normal = Vector.cast(...normals);
+            this.arrays.texture_coord = Vector.cast(...texture_coords);
+
+            for (let i = 0; i < positions.length; i += 3) {
+                indices.push(i, i + 1, i + 2);
+            }
+            this.indices = indices;
+        }
+    }
+
+
 
 const Windmill = defs.Windmill =
     class Windmill extends Shape {
@@ -146,7 +339,7 @@ const Windmill = defs.Windmill =
                 const newNormal = spin.times(vec4(0, 0, 1, 0)).to3();
                 // Propagate the same normal to all three vertices:
                 this.arrays.normal.push(newNormal, newNormal, newNormal);
-                this.arrays.texture_coord.push(...Vec.cast([0, 0], [0, 1], [1, 0]));
+                this.arrays.texture_coord.push(...Vector.cast([0, 0], [0, 1], [1, 0]));
                 // Procedurally connect the 3 new vertices into triangles:
                 this.indices.push(3 * i, 3 * i + 1, 3 * i + 2);
             }

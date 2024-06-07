@@ -30,10 +30,12 @@ const {
     Fake_Bump_Map,
     Phong_Shader,
     Tetrahedron,
+    Windmill,
     Cone_Tip,
     Textured_Phong_Normal_Map,
     Funny_Shader,
     Cylindrical_Tube,
+    Arrow,
 } = defs; // extracts specific shapes and shaders from the defs module
 
 const original_box_size = 2;
@@ -408,7 +410,7 @@ class Base_Scene extends Scene {
             'body': new Capped_Cylinder(10, 10),
             'torch': new Cube(),
             'fire': new Subdivision_Sphere(3),
-
+            'tetra': new Arrow(false),
 
 
         };
@@ -606,6 +608,12 @@ export class Maze extends Base_Scene {
         this.proj = null;
         this.projList = [];
         this.enemyList = [];
+        this.arrowList = [];
+        this.arrowList.push(new MoveableArrow(vec3(12, 0.3, -24)));
+        this.arrowList.push(new MoveableArrow(vec3(14.5, 1.75, -24)));
+        this.arrowList.push(new MoveableArrow(vec3(15.5, 0.5, -24)));
+        this.arrowList.push(new MoveableArrow(vec3(12, 0.5, -16), true));
+        this.arrowList.push(new MoveableArrow(vec3(14.5, 0.5, -16), true));
         this.freeze = false;
         this.whiteout_shader = new Whiteout_Shader();
         this.prevTime = 0;
@@ -1381,6 +1389,8 @@ export class Maze extends Base_Scene {
 
         
 
+        
+
 
         this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
         
@@ -1400,6 +1410,15 @@ export class Maze extends Base_Scene {
                 }
             }
         }
+
+        this.arrowList.forEach(a => {
+            let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
+            let updater = !this.freeze || (this.freeze && anyMovement)
+            a.render(context, program_state, this.shapes, this.materials.person, updater);
+            if(a.check_collision(this.camPosition)){
+                //this.fun
+            }
+        })
         
 
 
@@ -2066,6 +2085,113 @@ class ParticleSystem {
         this.particles.forEach(particle => particle.render(context, program_state, shapes, material));
     }
 }
+
+class MoveableArrow {
+    constructor(initial_position, invert = false, amplitude = 1, speed = 1) {
+        this.initial_position = initial_position;
+        this.amplitude = amplitude;
+        this.speed = speed;
+        this.invert = invert;
+        this.time = 0;
+    }
+
+    update(dt) {
+        this.time += dt;
+        const direction = this.invert ? -1 : 1;
+        this.current_position = this.initial_position.plus(vec3(0, 0, this.amplitude * Math.sin(this.time * this.speed) * direction));
+    }
+
+    display(context, program_state, shapes, material) {
+        const direction = this.invert ? Math.PI : 0;
+        const model_transform = Mat4.translation(...this.current_position).times(Mat4.rotation(direction, 0, 1, 0));
+        shapes.tetra.draw(context, program_state, model_transform, material);
+    }
+
+    render(context, program_state, shapes, material, updateBool) {
+        if(updateBool){
+            this.update(program_state.animation_delta_time / 1000);
+        }
+        this.display(context, program_state, shapes, material);
+    }
+
+    get_arrow_box_tips() {
+        const arrow_location = this.current_position;
+        const base = 0.5; // Adjust the size as necessary to match the arrow's bounding box
+        const z_extension = 5; // Extend the arrow tips by 2 units along the Z-axis
+        const offsets = this.get_offsets(base);
+        let res = [];
+        for (let offset of offsets) {
+            res.push(
+                vec(arrow_location[0] + offset[0], arrow_location[1] + offset[1], arrow_location[2] + offset[2] * z_extension)
+            );
+        }
+        return res;
+    }
+
+    get_offsets(base) {
+        return [
+            vec3(base, base, base),
+            vec3(base, base, -base),
+            vec3(base, -base, base),
+            vec3(base, -base, -base),
+            vec3(-base, base, base),
+            vec3(-base, base, -base),
+            vec3(-base, -base, base),
+            vec3(-base, -base, -base)
+        ];
+    }
+
+    get_person_box_tips(person_position) {
+        const person_location = person_position;
+        const base = 0.5 * 0.3; // Defines half the size of the person's bounding box
+        const offsets = this.get_offsets(base);
+        let res = [];
+        for (let offset of offsets) {
+            res.push(
+                vec3(person_location[0] + offset[0], person_location[1] + offset[1], person_location[2] + offset[2])
+            );
+        }
+        return res;
+    }
+
+    box_collide(box1, box2) {
+        return (
+            box1[0] < box2[1] && box1[1] > box2[0] && // X-axis overlap
+            box1[2] < box2[3] && box1[3] > box2[2] && // Y-axis overlap
+            box1[4] < box2[5] && box1[5] > box2[4]    // Z-axis overlap
+        );
+    }
+
+    check_collision(person_position , deathFunction) {
+        const arrow_tips = this.get_arrow_box_tips();
+        const person_tips = this.get_person_box_tips(person_position);
+
+        // Convert the tips to bounding boxes
+        const arrow_box = [
+            Math.min(...arrow_tips.map(tip => tip[0])), Math.max(...arrow_tips.map(tip => tip[0])),
+            Math.min(...arrow_tips.map(tip => tip[1])), Math.max(...arrow_tips.map(tip => tip[1])),
+            Math.min(...arrow_tips.map(tip => tip[2])), Math.max(...arrow_tips.map(tip => tip[2]))
+        ];
+
+        const person_box = [
+            Math.min(...person_tips.map(tip => tip[0])), Math.max(...person_tips.map(tip => tip[0])),
+            Math.min(...person_tips.map(tip => tip[1])), Math.max(...person_tips.map(tip => tip[1])),
+            Math.min(...person_tips.map(tip => tip[2])), Math.max(...person_tips.map(tip => tip[2]))
+        ];
+
+        if (this.box_collide(arrow_box, person_box)) {
+            return true;
+        }
+        return false;
+    }
+}
+
+// Usage example:
+// Assuming `shapes.tetra` is an instance of `Tetrahedron` and `initial_position` is a vec3 object.
+// const arrow = new MoveableArrow(initial_position, 1, 1, true);
+// arrow.render(context, program_state, shapes, material);
+// arrow.check_collision(player_position);
+
 
 
 class Grenade {
