@@ -1354,7 +1354,15 @@ export class Maze extends Base_Scene {
             this.enemyList.push(e1);
             let e2 = new Enemy(vec3(11.1,0.8,-13.4));
             this.enemyList.push(e2);
+            let e4 = new Enemy(vec3(12.1,0.8,-12.4));
+            this.enemyList.push(e4);
+            let e3 = new Enemy(vec3(12.1,0.8,-19.4));
+            this.enemyList.push(e3);
 
+            let e5 = new Enemy(vec3(22,0.8,-13.4));
+            this.enemyList.push(e5);
+            let e6 = new Enemy(vec3(20,0.8,-19.4));
+            this.enemyList.push(e6);
         }
 
         for(let e of this.enemyList){
@@ -1427,7 +1435,7 @@ export class Maze extends Base_Scene {
         }
         for(let p of this.projList){
             if(p.evil && this.check_bad_bullet_collision(p,1)){
-                this.projList = [];
+               
                 this.funDead();
                 
             }
@@ -1453,8 +1461,7 @@ export class Maze extends Base_Scene {
             let enemyPos = this.get_enemy_box_tips(e.position);
             let personPos = this.get_person_box_tips(this.person_location);
             if(this.box_collide_2d(personPos, enemyPos)){
-                e.health = 0;
-                this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
+              
                this.funDead();
             }
         }
