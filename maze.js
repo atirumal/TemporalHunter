@@ -2299,7 +2299,7 @@ class MoveableArrow {
         );
     }
 
-    check_collision(person_position , deathFunction) {
+    check_collision(person_position) {
         const arrow_tips = this.get_arrow_box_tips();
         const person_tips = this.get_person_box_tips(person_position);
 
