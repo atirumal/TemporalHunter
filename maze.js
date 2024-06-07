@@ -432,6 +432,13 @@ class Base_Scene extends Scene {
                     color_texture: new Texture("./assets/brickwall.jpg"),
                     light_depth_texture: null
                 }),
+            environment: new Material(new Shadow_Textured_Phong_Shader(1),
+                {
+                    ambient: 1, diffusivity: 0, specularity: 1,
+                    //color: hex_color("#FFFFFF"),
+                    color_texture: new Texture("./assets/interstellar.jpg"),
+                    light_depth_texture: null
+                }),
             person: new Material(new Phong_Shader,
                 {
                     ambient: 1, diffusivity: 0.5, color: hex_color("#FFFFFF")
@@ -842,7 +849,9 @@ export class Maze extends Base_Scene {
         const floor_transformation = Mat4.identity()
             .times(Mat4.translation(20, -1, -10))
             .times(Mat4.scale(20, 0.2, 20));
+        const sphere_transformation = Mat4.identity().times(Mat4.translation(17,0,-10)).times(Mat4.scale(1000,1000,1000));
         this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
+        this.shapes.sphere.draw(context, program_state, sphere_transformation, this.materials.environment);
     }
 
     // draw the player character in the maze
@@ -1182,7 +1191,7 @@ export class Maze extends Base_Scene {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         program_state.view_mat = program_state.camera_inverse;
-        program_state.projection_transform = Mat4.perspective(Math.PI / 2.5, context.width / context.height, 0.01, 100);
+        program_state.projection_transform = Mat4.perspective(Math.PI / 2.5, context.width / context.height, 0.01, 10000);
         this.render_scene(context, program_state, true, true, true);
 
         let model_transform = Mat4.identity();
