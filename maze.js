@@ -122,17 +122,17 @@ class Enemy {
 
         
         if(collide){
-            this.handleCollision(170, 195);
+            this.handleCollision(150, 200);
             if(this.speed == 0.02){
-                this.reverseTimer = 35;
+                this.reverseTimer = 28;
             }
             else{
-                this.reverseTimer = 17.5;
+                this.reverseTimer = 15;
             }
            
         }
 
-        if (this.timer <= 0) {
+        if (this.timer <= 0 && this.reverseTimer <= 0) {
             
             if(this.moveStatus == SHUFFLE){
                 //choose a random direction
@@ -143,7 +143,7 @@ class Enemy {
                 let r = Math.random();
                 if(flash){
                     this.moveStatus = BOMB;
-                    this.timer = 100;
+                    this.timer = 200;
                 }
                 else if(r < 0){
                     this.moveStatus = BOMB;
@@ -157,7 +157,7 @@ class Enemy {
                 else if(r < 0.75){
                     this.moveStatus = CHARGE;
                     this.timer = 40;
-                    this.speed = 0.18;
+                    this.speed = 0.16;
                 }
                 else{
                     this.moveStatus = MOVE;
@@ -560,6 +560,36 @@ class Base_Scene extends Scene {
         this.treasure_base_transform = Mat4.translation(...this.goal_position)
             .times(Mat4.scale(0.5, 0.5, 0.5)); // transformation for the treasure
         this.bullet_transform = Mat4.translation(0,1,-5).times(this.camera_transformation).times(Mat4.scale(0.8,0.8,0.8));
+        this.dead = false;
+        this.canDie = true;
+        this.lavaBlocks = [
+          
+            
+            [20.5,-6],
+            [12,-12],
+            [10.6,-12],
+            [6.8,-22],
+            [12,-19],
+            [12,-21],
+            [10.6,-21],
+            [10.6,-19],
+            [12,-2],
+            [10.6,-2],
+            [5.2,-7],
+            [6.6,-7],
+            [34,-2],
+            [34,-6],
+            [34,-26],
+            [24,-14],
+            [30,-14],
+            [28,-9.5],
+   
+            [20,-20],
+            [21.4,-20],
+            [1.15,-19],
+            [2.2,-19],
+            [38,-16],
+          ];
     }
 
     display(context, program_state) {
@@ -668,7 +698,7 @@ export class Maze extends Base_Scene {
 
     get_enemy_box_tips(hypothetic_enemy_position) {
         const enemy_location = hypothetic_enemy_position ? hypothetic_enemy_position : hypothetic_enemy_position; // Uses the hypothetical position
-        const base = 0.2; // defines half the size of the person's bounding box
+        const base = 0.3; // defines half the size of the person's bounding box
         const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
         let res = []; // add offsets to the person's location to compute the bounding box tips
         for (let offset of offsets) {
@@ -876,12 +906,16 @@ export class Maze extends Base_Scene {
 
     // draw the floor of the maze
     draw_floor(context, program_state, shadow_pass) {
+        
         const floor_transformation = Mat4.identity()
             .times(Mat4.translation(20, -1, -10))
             .times(Mat4.scale(20, 0.2, 20));
         const sphere_transformation = Mat4.identity().times(Mat4.translation(17,0,-10)).times(Mat4.scale(1000,1000,1000));
-        this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
+       this.shapes.cube.draw(context, program_state, floor_transformation, shadow_pass ? this.materials.floor : this.materials.pure);
         this.shapes.sphere.draw(context, program_state, sphere_transformation, this.materials.environment);
+        
+        
+    
     }
 
     // draw the player character in the maze
@@ -1037,7 +1071,7 @@ export class Maze extends Base_Scene {
         
         // Box rendering:
         // iterate over each box coordinate in this.box_coord
-        const scale_factor = 2; // Adjust this factor to change the height
+        const scale_factor = 1; // Adjust this factor to change the height
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
@@ -1047,7 +1081,18 @@ export class Maze extends Base_Scene {
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
                 .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
             
-            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.floor : this.materials.pure);
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
+        }
+        for (let i = 0; i < this.box_coord.length; i++) {
+            const x = original_box_size * this.box_coord[i][0];
+            const y = original_box_size * this.box_coord[i][1];
+            const z = -original_box_size * this.box_coord[i][2];
+            
+            // Apply the scaling transformation
+            box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
+                .times(Mat4.translation(0, 2, 0)); // Scale only the y dimension
+            
+            this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wall2 : this.materials.pure);
         }
 
         this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
@@ -1132,7 +1177,7 @@ export class Maze extends Base_Scene {
             playerLoc[2] - e.position[2]
         );
 
-        let dirVec = this.shift(dir,-3,3);
+        let dirVec = this.shift(dir,-5,5);
 
         const proj = new Projectile(this.proj_transf, 8, dirVec, true, e.position);
         this.projList.push(proj);
@@ -1141,6 +1186,17 @@ export class Maze extends Base_Scene {
 
        
         
+    }
+
+    draw_lava(context, program_state){
+        
+        for(const [x,z] of this.lavaBlocks){
+            let lava_transform = Mat4.identity()
+            .times(Mat4.translation(x, -1.3, z))
+            .times(Mat4.scale(0.7,0.6,1));
+            this.shapes.cube.draw(context, program_state, lava_transform, this.materials.lava);
+        }
+      
     }
 
 
@@ -1194,6 +1250,25 @@ export class Maze extends Base_Scene {
         ctx.restore();
 
     }
+
+    funDead(){
+        if(!this.canDie){
+            return;
+        }
+        if(!this.dead){
+            this.dead = true;
+            if (confirm("You died. Click 'OK' to restart.")) {
+                location.reload();
+            }
+            else{
+                location.reload();
+            }
+        }
+        
+
+    }
+
+
 
     display(context, program_state, dt = program_state.animation_delta_time / 700) {
 
@@ -1316,13 +1391,22 @@ export class Maze extends Base_Scene {
 
         this.draw_person(context, program_state);
         this.draw_chest(context, program_state);
+        this.draw_lava(context, program_state);
 
         if(t == 0){
             let e1 = new Enemy(vec3(2+15,1,-2));
             this.enemyList.push(e1);
             let e2 = new Enemy(vec3(11.1,0.8,-13.4));
             this.enemyList.push(e2);
+            let e4 = new Enemy(vec3(12.1,0.8,-12.4));
+            this.enemyList.push(e4);
+            let e3 = new Enemy(vec3(12.1,0.8,-19.4));
+            this.enemyList.push(e3);
 
+            let e5 = new Enemy(vec3(22,0.8,-13.4));
+            this.enemyList.push(e5);
+            let e6 = new Enemy(vec3(20,0.8,-19.4));
+            this.enemyList.push(e6);
         }
 
         for(let e of this.enemyList){
@@ -1349,7 +1433,7 @@ export class Maze extends Base_Scene {
             }
             let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
             if(!this.freeze || (this.freeze && anyMovement)){
-            console.log(this.needsFlash);
+          
             e.update(dt, this.person_location, noCollide, this.needsFlash);
             this.prevTime = program_state.animation_time;
             }
@@ -1384,7 +1468,7 @@ export class Maze extends Base_Scene {
         
                     e.health -= 1;
                     e.damageTimer = 5;
-                    e.cooldownTimer = 40;
+                    e.cooldownTimer = 20;
                     if(e.health == 0){
                         this.enemyKill = vec3(e.position[0],e.position[1]-1.5,e.position[2]);
                         this.enemyParticleSystem = new ParticleSystem(this.enemyKill, 2);
@@ -1395,13 +1479,8 @@ export class Maze extends Base_Scene {
         }
         for(let p of this.projList){
             if(p.evil && this.check_bad_bullet_collision(p,1)){
-                this.projList = [];
-                if (confirm("You died. Click 'OK' to restart.")) {
-                    location.reload();
-                }
-                else{
-                    location.reload();
-                }
+               
+                this.funDead();
                 
             }
         }
@@ -1426,14 +1505,18 @@ export class Maze extends Base_Scene {
             let enemyPos = this.get_enemy_box_tips(e.position);
             let personPos = this.get_person_box_tips(this.person_location);
             if(this.box_collide_2d(personPos, enemyPos)){
-                e.health = 0;
-                this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
-                if (confirm("You died. Click 'OK' to restart.")) {
-                    location.reload();
-                }
-                else{
-                    location.reload();
-                }
+              
+               this.funDead();
+            }
+        }
+
+        //collision between human and lava
+        for(const [x,z] of this.lavaBlocks){
+            let personPos = this.camPosition;
+            
+            let dist = (personPos[0]-x)**2 + (personPos[2]-z)**2;
+            if(dist < 1 && personPos[1] <= 0.83){
+                this.funDead();
             }
         }
         
@@ -1516,7 +1599,7 @@ export class Maze extends Base_Scene {
         this.tick = this.tick + 1;
         this.draw_crosshair();
         if(this.flashGrenadeTimer > 0){
-            console.log("About to explode");
+           // console.log("About to explode");
             this.flashGrenadeTimer -= 1;
             this.flashEffect(gl, this.flashGrenadeTimer,false);
         }
@@ -1640,7 +1723,7 @@ export class Maze extends Base_Scene {
     make_grenade_bomb(list, position, playerVector, incomDir, grenadeTimer){
         //
         let dotProduct = incomDir[0]*playerVector[0] + incomDir[1]*playerVector[1] + incomDir[2]*playerVector[2];
-        console.log("hi2");
+     //   console.log("hi2");
         //console.log(dotProduct);
         let mag1 = Math.sqrt(incomDir[0]**2 + incomDir[1]**2 + incomDir[2]**2);
         let mag2 = Math.sqrt(playerVector[0]**2 + playerVector[1]**2 + playerVector[2]**2);
@@ -1648,8 +1731,8 @@ export class Maze extends Base_Scene {
 
        // console.log(cosAngle);
         let length = Math.round(50 * (cosAngle+1)) + 60;
-        console.log("Called");
-        console.log(length);
+     //   console.log("Called");
+     //  console.log(length);
         
         grenadeTimer = length;
         return length;
@@ -1796,6 +1879,7 @@ export class Maze extends Base_Scene {
         this.key_triggered_button("Spawn Bullet", ["m"], () => this.spawn_projectile());
         this.key_triggered_button("Flash Demo", ["f"], () => this.needsFlash = !this.needsFlash);
         this.key_triggered_button("Time Freeze", ["t"], () => this.freeze = !this.freeze);
+        this.key_triggered_button("No Death Demo", ["p"], () => this.canDie = !this.canDie);
         this.key_triggered_button("Teleport", ["c"], () => {
             if(this.player_transform_exists){
                 this.camPosition = vec3(this.player_transform[0], 0.8, this.player_transform[2]);
@@ -1812,19 +1896,20 @@ export class Maze extends Base_Scene {
         });        
         const speed_controls = this.control_panel.appendChild(document.createElement("span"));
         speed_controls.style.margin = "30px";
-        this.key_triggered_button("-", ["o"], () =>
-            this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
-        this.live_string(box => {
-            box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
-        }, speed_controls);
-        this.key_triggered_button("+", ["p"], () =>
-            this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
-        this.new_line();
-        this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
-        this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
-        this.new_line();
-        //this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
-        this.new_line();
+       // this.key_triggered_button("-", ["o"], () =>
+          //  this.speed_multiplier /= 1.2, undefined, undefined, undefined, speed_controls);
+       // this.live_string(box => {
+          //  box.textContent = "Speed: " + this.speed_multiplier.toFixed(2)
+       // }, speed_controls);
+      //  this.key_triggered_button("+", ["p"], () =>
+          //  this.speed_multiplier *= 1.2, undefined, undefined, undefined, speed_controls);
+      //  this.new_line();
+      //  this.key_triggered_button("Roll left", [","], () => this.roll = 1, undefined, () => this.roll = 0);
+      //  this.key_triggered_button("Roll right", ["."], () => this.roll = -1, undefined, () => this.roll = 0);
+      //  this.new_line();
+     //   //this.key_triggered_button("(Un)freeze mouse look around", ["f"], () => this.look_around_locked ^= 1, "#8B8885");
+      //  this.new_line();
+      /*
         this.key_triggered_button("Go to world origin", ["r"], () => {
             this.matrix().set_identity(4, 4);
             this.inverse().set_identity(4, 4)
@@ -1854,6 +1939,7 @@ export class Maze extends Base_Scene {
                 this.will_take_over_graphics_state = true
             }, "#8B8885");
         this.new_line();
+        */
     }
 
     first_person_flyaround(radians_per_frame, meters_per_frame, program_state, leeway = 0) {
