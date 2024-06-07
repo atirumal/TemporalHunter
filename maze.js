@@ -406,7 +406,8 @@ class Base_Scene extends Scene {
             'rectangle': new Cylindrical_Tube(40, 80),
             'cylinder': new Cube(),
             'body': new Capped_Cylinder(10, 10),
-
+            'torch': new Cube(),
+            'fire': new Subdivision_Sphere(3),
 
 
 
@@ -512,6 +513,12 @@ class Base_Scene extends Scene {
                 diffusivity: 0.5,
                 specularity: 0.5
             }),
+            fire: new Material(new Funny_Shader(), {}),
+            wood: new Material(new Textured_Phong(),
+                {
+                    ambient: 0.5, diffusivity: 1.0, specularity: 0.3,
+                }),
+
 
         
 
@@ -874,6 +881,26 @@ export class Maze extends Base_Scene {
 
     }
 
+    draw_torch(context, program_state, x, y, z) {
+        if (x === 0 || x >= 20 || z === 0 || z >= 14) {
+            return;
+        }
+        let torch_transformation = Mat4.identity()
+            .times(Mat4.translation(x, y, z))
+            .times(Mat4.scale(0.1, 0.3, .08));
+        this.shapes.torch.draw(
+            context, program_state,
+            torch_transformation,
+            this.materials.wood);
+        this.shapes.fire.draw(
+            context, program_state,
+            Mat4.identity()
+                .times(Mat4.translation(0.05+x, y + 0.5, z))
+                .times(Mat4.scale(0.25, 0.25, 0.25)),
+            this.materials.fire
+        );
+    }
+
 
     // initializes texture buffers for shadow mapping in WebGL
     texture_buffer_init(gl) {
@@ -1222,7 +1249,8 @@ export class Maze extends Base_Scene {
 
             // Apply the scaling transformation
             model_transform = this.draw_box(context, program_state, model_transform, x, y, z)
-                .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
+                .times(Mat4.scale(1, scale_factor, 1)); 
+            if (i % 2 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
         }
 
 
