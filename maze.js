@@ -6,11 +6,11 @@ import {
     LIGHT_DEPTH_TEX_SIZE,
     Shadow_Textured_Phong_NM_Shader,
     Shadow_Textured_Phong_Shader
-} from "./examples/shadow_shaders.js"; // bring in various modules and definitions from other JavaScript files
+} from "./examples/shadow_shaders.js";
 
 const {
     Vector, Vector3, vec, Vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture,
-} = tiny; // extract several classes, functions, and constants from the tiny module
+} = tiny;
 
 const MOVE = 1;
 const SHUFFLE = 2;
@@ -36,40 +36,35 @@ const {
     Funny_Shader,
     Cylindrical_Tube,
     Arrow,
-} = defs; // extracts specific shapes and shaders from the defs module
-
+} = defs;
 const original_box_size = 2;
 
 
 class Enemy {
     normalizeVector(vector) {
-        // Calculate the magnitude (length) of the vector
+       
         const length = Math.sqrt(vector.reduce((sum, component) => sum + component ** 2, 0));
         
-        // Check if the length is zero to avoid division by zero
+        
         if (length === 0) {
             throw new Error("Cannot normalize a zero-length vector");
         }
     
-        // Divide each component by the length to normalize
+       
         return vector.map(component => component / length);
     }
 
     handleCollision(min, max) {
-        const minAngle = min;  // Minimum angle in degrees
-        const maxAngle = max; // Maximum angle in degrees
+        const minAngle = min;  
+        const maxAngle = max; 
 
-        // Convert angle to radians
         const minAngleRad = minAngle * (Math.PI / 180);
         const maxAngleRad = maxAngle * (Math.PI / 180);
 
-        // Generate a random angle within the range
         const randomAngleRad = Math.random() * (maxAngleRad - minAngleRad) + minAngleRad;
 
-        // Determine if we should rotate clockwise or counterclockwise
         const clockwise = Math.random() >= 0.5 ? 1 : -1;
 
-        // Calculate the new direction
         const cosAngle = Math.cos(randomAngleRad);
         const sinAngle = Math.sin(randomAngleRad) * clockwise;
 
@@ -77,15 +72,12 @@ class Enemy {
             this.direction[0] * cosAngle - this.direction[2] * sinAngle,
             this.direction[1],
             this.direction[0] * sinAngle + this.direction[2] * cosAngle,
-             // Assuming no change in the z-component for simplicity
         );
 
-        // Normalize the new direction
         this.direction = this.normalizeVector(newDirection);
     }
 
     distanceBetweenPoints(point1, point2) {
-        // Ensure both points have three coordinates
         if (point1.length !== 3 || point2.length !== 3) {
             throw new Error("Both points must have three coordinates.");
         }
@@ -94,7 +86,6 @@ class Enemy {
         const dy = point2[1] - point1[1];
         const dz = point2[2] - point1[2];
     
-        // Calculate the distance using the Euclidean distance formula
         const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     
         return distance;
@@ -105,12 +96,12 @@ class Enemy {
         this.initial = 0;
         this.position = position;
         this.model_transform = Mat4.identity();
-        this.moving = false; // Whether moving or at standstill
+        this.moving = false; 
         this.direction = vec3(1, 0, 0);
         this.timer = 0;
         this.reverseTimer = 0;
         this.moveStatus = SHUFFLE;
-        this.detectRange = 1; // change back to 30
+        this.detectRange = 1; 
         this.outRange = 20;
         this.speed = 0.02;
         this.shootTimer = 80;
@@ -137,7 +128,7 @@ class Enemy {
         if (this.timer <= 0 && this.reverseTimer <= 0) {
             
             if(this.moveStatus == SHUFFLE){
-                //choose a random direction
+              
                 this.handleCollision(0,360);
                 this.timer = 200;
             }
@@ -172,7 +163,6 @@ class Enemy {
 
         }
 
-        //now check if ACTIVE
         if(this.moveStatus == SHUFFLE && this.distanceBetweenPoints(this.position, vec3(playerLoc[0],playerLoc[1],playerLoc[2])) < this.detectRange){
            
             this.moveStatus = MOVE;
@@ -190,7 +180,6 @@ class Enemy {
         }
 
 
-        // Update direction to point towards the playe
         if((this.moveStatus == MOVE || this.moveStatus == CHARGE) && this.reverseTimer == 0){
          
             this.direction = vec3(
@@ -200,12 +189,10 @@ class Enemy {
             );
         }
 
-        //Handle attack
 
         
         let normDirection = this.normalizeVector(this.direction);
 
-        // Update position based on normalized direction and speed
         if (this.moveStatus != ATTACK) {
            
 
@@ -216,7 +203,6 @@ class Enemy {
             );
         }
 
-        // Decrement the timer
         this.timer -= 1;
         if(this.reverseTimer > 0){
             this.reverseTimer -= 1;
@@ -247,32 +233,27 @@ class Enemy {
             material = material2;
         }
         let model_transform = this.model_transform;
-        let spawn_position = this.position; // position of the goal chest in the game
-        model_transform = model_transform.times(Mat4.translation(...spawn_position)); // transformation for the treasure
+        let spawn_position = this.position; 
+        model_transform = model_transform.times(Mat4.translation(...spawn_position));
 
         if (this.direction[0] === 0 && this.direction[2] === 0) {
-            return 0; // Handle zero vector case (any angle is valid)
+            return 0; 
           }
         
-          // Calculate the angle using arctangent (atan2 for quadrant handling)
           let rot = Math.atan2(this.direction[0], this.direction[2]);
         
-          // Convert from radians to degrees (optional)
         
         model_transform = model_transform.times(Mat4.rotation(rot, 0, 1, 0));
-        // Draw head
         let head_transform = model_transform.times(Mat4.rotation(-angleArm/6,0,1,0))
                                             .times(Mat4.translation(0, 1.2, 0))
                                              .times(Mat4.scale(0.4, 0.4, 0.4));
         shapes.sphere.draw(context, program_state, head_transform, material);
 
-        // Draw body
         let body_transform = model_transform.times(Mat4.rotation(-angleArm/6,0,1,0))
                                             .times(Mat4.translation(0, 0, 0))
                                             .times(Mat4.scale(0.45, 0.8, 0.55));
         shapes.body.draw(context, program_state, body_transform, material);
 
-        // Draw left arm
         let leftAngle = angleArm;
         let rightAngle = -angleArm;
         if(this.moveStatus == ATTACK){
@@ -290,7 +271,6 @@ class Enemy {
                                                 
         shapes.cylinder.draw(context, program_state, left_arm_transform, material);
 
-        // Draw right arm
         let right_arm_transform = model_transform.times(Mat4.translation(0,0.6,0))
                                                 .times(Mat4.rotation(rightAngle,1,0,0))
                                                 .times(Mat4.translation(0,-0.6,0))
@@ -298,13 +278,11 @@ class Enemy {
                                                  .times(Mat4.scale(0.1, 0.6, 0.1));
         shapes.cylinder.draw(context, program_state, right_arm_transform, material);
 
-        // Draw left leg
         let left_leg_transform = model_transform.times(Mat4.rotation(angle,1,0,0))
                                                 .times(Mat4.translation(-0.24, -1.5, 0))
                                                 .times(Mat4.scale(0.14, 1, 0.2));
         shapes.cylinder.draw(context, program_state, left_leg_transform, material);
 
-        // Draw right leg
         let right_leg_transform = model_transform.times(Mat4.rotation(-1*angle,1,0,0))
                                                 .times(Mat4.translation(0.24, -1.5, 0))
                                                  .times(Mat4.scale(0.14, 1, 0.2));
@@ -339,16 +317,12 @@ class Projectile {
             return;
         }
         this.lifeTime -= dt;
-       // console.log("hi");
-        // Update position based on direction and speed
+
         this.model_transform = this.model_transform.times(Mat4.translation(...this.direction.times(this.speed*dt)));
-        //this.position = this.getTranslation(this.model_transform);
-       // console.log(this.position);
        
     }
 
     render(context, program_state, material, shapes, gunMaterial, currMat, materialEvil) {
-        // Render the projectile using the capped cylinder shape
         if(this.timer > 0 && !this.evil){
             this.draw_gun(context, program_state, shapes, gunMaterial, currMat);
             this.timer = this.timer - 1;
@@ -421,7 +395,6 @@ class Base_Scene extends Scene {
        
 
         // *** Materials
-        // define the materials to be used for different objects. Each material is created with specific shader properties and textures
         this.materials = {
             plastic: new Material(new defs.Phong_Shader(),
                 {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
@@ -465,7 +438,7 @@ class Base_Scene extends Scene {
                     texture: new Texture("./assets/blue.jpg"),
                 }),
             light_src: new Material(new Phong_Shader(), {
-                color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
+                color: color(1, 1, 1, 0.8), ambient: 1, diffusivity: 0, specularity: 0
             }),
             pure: new Material(new Color_Phong_Shader(), {}),
             depth_tex: new Material(new Depth_Texture_Shader_2D(), {
@@ -558,24 +531,24 @@ class Base_Scene extends Scene {
 
         this.gun_active = false;
 
-        this.look_at_direction = vec4(1, 0, 0, 0); // Vector indicating the direction the camera is looking
-        this.person_location = vec4(2, 0, -2, 0); // initial location of the person
-        this.person_transformation = Mat4.identity() // transformation matrix for the person, including translation, rotation, and scaling
+        this.look_at_direction = vec4(1, 0, 0, 0);
+        this.person_location = vec4(2, 0, -2, 0); 
+        this.person_transformation = Mat4.identity() 
             .times(Mat4.translation(2, -0.5, -2))
             .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
             .times(Mat4.scale(0.3, 0.3, 0.3));
         this.camPosition = vec3(2, 0.8, -2);
         this.lookatpoint = vec3(10, 0.8, -2);
         this.upvector = vec3(0, 1, 0);
-        this.camera_transformation = Mat4.identity(); // transformation matrix for the camera
+        this.camera_transformation = Mat4.identity();
         this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
             //.times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
             //.times(Mat4.translation(-2, -0.8, 2));
         
 
-        this.goal_position = vec3(34, 0, -10); // position of the goal chest in the game
+        this.goal_position = vec3(34, 0, -10); 
         this.treasure_base_transform = Mat4.translation(...this.goal_position)
-            .times(Mat4.scale(0.5, 0.5, 0.5)); // transformation for the treasure
+            .times(Mat4.scale(0.5, 0.5, 0.5)); 
         this.bullet_transform = Mat4.translation(0,1,-5).times(this.camera_transformation).times(Mat4.scale(0.8,0.8,0.8));
         this.dead = false;
         this.canDie = true;
@@ -629,14 +602,14 @@ class Base_Scene extends Scene {
 
 export class Maze extends Base_Scene {
 
-    constructor() { // initialize the maze-specific properties and configurations
+    constructor() { 
         super();
-        this.get_coords(); //  fetches the coordinates necessary for the maze
-        this.still_lighting = false; // boolean flag for lighting effects
+        this.get_coords();
+        this.still_lighting = false; 
         this.map_plane = []; 
-        this.init_ok = false; // flag to check if the initialization is done
-        const offsets = this.get_offsets(1) // fetches the offsets for creating the 2D projection of the maze
-        let res = []; // transforming 3D coordinates of maze walls into 2D coordinates on a plane
+        this.init_ok = false; 
+        const offsets = this.get_offsets(1)
+        let res = []; 
         for (let c of this.box_coord) {
             let resc = [];
             const center = vec(original_box_size * c[0], original_box_size * c[2])
@@ -651,7 +624,7 @@ export class Maze extends Base_Scene {
 
         this.has_won = false;
 
-        this.map_plane = res // stores projected 2d coords of maze walls
+        this.map_plane = res 
         this.proj = null;
         this.projList = [];
         this.enemyList = [];
@@ -669,7 +642,6 @@ export class Maze extends Base_Scene {
         }
         this.projDelay = 0;
         
-        //movement stuff 
         this.tick = 0;
         const data_members = {
             roll: 0, look_around_locked: true,
@@ -682,7 +654,6 @@ export class Maze extends Base_Scene {
         this.will_take_over_graphics_state = true;
 
         this.jumpBool = false;
-        // Initialization
         this.smokeList = []
         this.grenadeList = []
         this.enemyKill = vec3(15,1,1);
@@ -694,9 +665,7 @@ export class Maze extends Base_Scene {
     }
 
 
-    // generates a list of 2D vectors representing the corners of a square centered around a given base value
     get_offsets(base) {
-        // this represents vectors for the four corners of a square
         return [
             vec(base, -1 * base),
             vec(base, base),
@@ -705,12 +674,11 @@ export class Maze extends Base_Scene {
         ];
     }
 
-    // Computes the coordinates of the tips of a bounding box around the person in the maze
     get_person_box_tips(hypothetic_person_position) {
-        const person_location = hypothetic_person_position ? hypothetic_person_position : hypothetic_person_position; // Uses the hypothetical position
-        const base = 0.5 * 0.3; // defines half the size of the person's bounding box
-        const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
-        let res = []; // add offsets to the person's location to compute the bounding box tips
+        const person_location = hypothetic_person_position ? hypothetic_person_position : hypothetic_person_position;
+        const base = 0.5 * 0.3;
+        const offsets = this.get_offsets(base); 
+        let res = []; 
         for (let offset of offsets) {
             res.push(
                 vec(person_location[0] + offset[0], -person_location[2] - offset[1])
@@ -720,10 +688,10 @@ export class Maze extends Base_Scene {
     }
 
     get_enemy_box_tips(hypothetic_enemy_position) {
-        const enemy_location = hypothetic_enemy_position ? hypothetic_enemy_position : hypothetic_enemy_position; // Uses the hypothetical position
-        const base = 0.3; // defines half the size of the person's bounding box
-        const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
-        let res = []; // add offsets to the person's location to compute the bounding box tips
+        const enemy_location = hypothetic_enemy_position ? hypothetic_enemy_position : hypothetic_enemy_position;
+        const base = 0.3;
+        const offsets = this.get_offsets(base); 
+        let res = []; 
         for (let offset of offsets) {
             res.push(
                 vec(enemy_location[0] + offset[0], -enemy_location[2] - offset[1])
@@ -734,9 +702,9 @@ export class Maze extends Base_Scene {
 
     get_bullet_box_tips(hypothetic_bullet_position) {
         const bullet_location = hypothetic_bullet_position;
-        const base = 0.1; // defines half the size of the person's bounding box
-        const offsets = this.get_offsets(base); // uses the offsets to determine the corners of the bounding box
-        let res = []; // add offsets to the person's location to compute the bounding box tips
+        const base = 0.1; 
+        const offsets = this.get_offsets(base); 
+        let res = []; 
         for (let offset of offsets) {
             res.push(
                 vec(bullet_location[0] + offset[0], -bullet_location[2] - offset[1])
@@ -745,33 +713,27 @@ export class Maze extends Base_Scene {
         return res
     }
 
-    // calculates the 2D coordinates of the corners of goal chest given its location in 3D space, projected onto the 2D plane
-    get_wall_brick_box_tips(box_location) { // pass in 3D coordinates of the box
-        const base = 1; // the size of the box is set to 1
-        const offsets = this.get_offsets(base); // uses get_offsets(base) to get the corners of the box relative to its center
-        // For each offset, calculate the 2D coordinates by adding the offset to the box's location
+    get_wall_brick_box_tips(box_location) { 
+        const base = 1; 
+        const offsets = this.get_offsets(base);
         let res = [];
         for (let offset of offsets) {
             res.push(
                 vec(box_location[0] + offset[0], -box_location[2] - offset[1])
             )
         }
-        return res // the coordinates are stored in the res array
+        return res 
     }
 
-    // check for collision between two 1D intervals
-    box_collide_1d(box1, box2) { // box1, box2: each represents an interval with a minimum and maximum value
-        // Extracts the minimum and maximum values of both intervals
+    box_collide_1d(box1, box2) {
         const xmin1 = box1[0];
         const xmax1 = box1[1];
         const xmin2 = box2[0];
         const xmax2 = box2[1];
-        return xmax1 >= xmin2 && xmax2 >= xmin1; // if the intervals overlap, return true
+        return xmax1 >= xmin2 && xmax2 >= xmin1;
     }
 
-    // check for collision between two 2D boxes
     box_collide_2d(box1, box2) {
-        // For both boxes, calculate the minimum and maximum x and y values by iterating through the corner coordinates
 
         const xmin1 = Math.min(...box1.map(c => c[0]));
         const xmax1 = Math.max(...box1.map(c => c[0]));
@@ -783,12 +745,10 @@ export class Maze extends Base_Scene {
         const ymax2 = Math.max(...box2.map(c => c[1]));
 
         return this.box_collide_1d([xmin1, xmax1], [xmin2, xmax2]) &&
-            this.box_collide_1d([ymin1, ymax1], [ymin2, ymax2]) // determine if the boxes overlap in both the x and y dimensions by using the box_collide_1d method
+            this.box_collide_1d([ymin1, ymax1], [ymin2, ymax2]) 
     }
 
-    // defining the coordinates of the boxes in the maze
     get_coords() {
-        // initializes the box_coord array with the coordinates of the boxes in the maze
         this.box_coord = [
             [0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0], [5, 0, 0],
             [6, 0, 0], [7, 0, 0], [8, 0, 0], [9, 0, 0], [10, 0, 0], [11, 0, 0],
@@ -814,7 +774,6 @@ export class Maze extends Base_Scene {
             [2, 0, 13], [4, 0, 13], [8, 0, 13], [12, 0, 13], [1, 0, 14], [2, 0, 14],
             [4, 0, 14], [5, 0, 14], [6, 0, 14], [7, 0, 14], [8, 0, 14], [9, 0, 14],
 
-            // border of maze
             [0, 0, 1], [0, 0, 2], [0, 0, 3], [0,0 , 4], [0, 0, 5], [0, 0, 6],
             [0, 0, 7], [0, 0, 8], [0, 0, 9], [0,0 , 10], [0, 0, 11], [0, 0, 12], [0, 0, 13], [0, 0, 14],
 
@@ -828,15 +787,14 @@ export class Maze extends Base_Scene {
 
 
 
-    // check if the player's new position (after movement) collides with the goal position
-    check_winning_condition(new_person_location_tips) { // take in the projected 2D coordinates of the player's new position
+    check_winning_condition(new_person_location_tips) { 
         if (this.has_won) {
-            return false; // If the game is already won, skip the check
+            return false; 
         }
 
         if (this.box_collide_2d(
             new_person_location_tips,
-            this.get_wall_brick_box_tips(this.goal_position) // use box_collide_2d method to check if the player's new position collides with the goal position
+            this.get_wall_brick_box_tips(this.goal_position)
         )) {
             this.has_won = true;
             if (confirm("You won! Click 'OK' to restart.")) {
@@ -847,13 +805,12 @@ export class Maze extends Base_Scene {
         return true
     }
 
-    check_bullet_collision(bullet, person){ //for both enemies, people
+    check_bullet_collision(bullet, person){ 
         let bullet_loc = bullet.getTranslation(bullet.model_transform);
 
         let person_loc;
         let boxPos;
         if(person instanceof Enemy){
-           // console.log("Yep");
             person_loc = person.position;
            
         }
@@ -864,7 +821,6 @@ export class Maze extends Base_Scene {
 
        
 
-        //
         let dist = Math.pow(person_loc[0]-bullet_loc[0],2)
         +  Math.pow(person_loc[2]-bullet_loc[2],2);
 
@@ -879,7 +835,7 @@ export class Maze extends Base_Scene {
 
     }  
 
-    check_bad_bullet_collision(bullet, person){ //for both enemies, people
+    check_bad_bullet_collision(bullet, person){ 
         let bullet_loc = bullet.getTranslation(bullet.model_transform);
 
         let person_loc;
@@ -901,17 +857,16 @@ export class Maze extends Base_Scene {
 
     }  
 
-    // check if the player's new position collides with any wall in the maze
-    check_person_colliding_wall(new_person_location_tips) { // take in the projected 2D coordinates of the player's new position
+    check_person_colliding_wall(new_person_location_tips) { 
         //console.log("hhhh");
-        for (let i = 0; i < this.map_plane.length; i++) { // iterates through each projected wall in the map_plane
+        for (let i = 0; i < this.map_plane.length; i++) { 
             const cur_square = this.map_plane[i];
             if (this.box_collide_2d(
                 cur_square,
-                new_person_location_tips // box_collide_2d to check if the player's new position collides with the current wall
+                new_person_location_tips 
             )) {
 
-                return false; // If a collision is detected with any wall, returns false
+                return false; 
             }
         }
         return true;
@@ -919,7 +874,6 @@ export class Maze extends Base_Scene {
 
 
 
-    // draw walls at the specified position (x, y, z) in the scene
     draw_box(context, program_state, model_transform, x, y, z) {
         model_transform = Mat4.identity().times(Mat4.translation(x, y, z));
         return model_transform;
@@ -927,7 +881,6 @@ export class Maze extends Base_Scene {
 
 
 
-    // draw the floor of the maze
     draw_floor(context, program_state, shadow_pass) {
         
         const floor_transformation = Mat4.identity()
@@ -941,24 +894,20 @@ export class Maze extends Base_Scene {
     
     }
 
-    // draw the player character in the maze
     draw_person(context, program_state) {
-        program_state.set_camera(this.camera_transformation) // sets the camera transformation to the current camera transformation
+        program_state.set_camera(this.camera_transformation) 
         if(this.player_transform_exists){
             const here = Mat4.identity().times(Mat4.translation(this.player_transform[0], -1, this.player_transform[2])).times(Mat4.scale(0.5,0.5,0.5));
-            this.shapes.person.draw(context, program_state, here, this.materials.person); // draw the player character shape using its transformation (person_transformation) and material
+            this.shapes.person.draw(context, program_state, here, this.materials.person); 
         }
 
     }
 
-    // Define draw_ornaments function
     draw_ornaments(context, program_state, x, y, z) {
-        // Assuming the ornament shape and material are properly defined and accessible
         let ornament_transformation = Mat4.identity()
             .times(Mat4.translation(x, y, z))
-            .times(Mat4.scale(0.2, 0.2, 0.2)); // Increase scale for larger cube
+            .times(Mat4.scale(0.2, 0.2, 0.2)); 
 
-        // Draw ornament
         this.shapes.ornaments.draw(
             context, program_state,
             ornament_transformation,
@@ -968,9 +917,8 @@ export class Maze extends Base_Scene {
     draw_varied_orn(context, program_state, x, y, z) {
         let varied_orn_transformation = Mat4.identity()
             .times(Mat4.translation(x, y, z))
-            .times(Mat4.scale(0.2, 0.2, 0.2)); // Increase scale for larger cube
+            .times(Mat4.scale(0.2, 0.2, 0.2)); 
 
-        // Draw ornament
         this.shapes.varied_orn.draw(
             context, program_state,
             varied_orn_transformation,
@@ -1000,54 +948,45 @@ export class Maze extends Base_Scene {
     }
 
 
-    // initializes texture buffers for shadow mapping in WebGL
     texture_buffer_init(gl) {
-        // Create a new depth texture (lightDepthTexture) and binds it to the Buffered_Texture
         this.lightDepthTexture = gl.createTexture();
-        // Set this depth texture to the light_depth_texture property of the wall and floor materials (defined in this.materials)
         this.light_depth_texture = new Buffered_Texture(this.lightDepthTexture);
         this.materials.wall.light_depth_texture = this.light_depth_texture;
         this.materials.floor.light_depth_texture = this.light_depth_texture;
 
-        // Create a framebuffer (lightDepthFramebuffer) for rendering depth information
         this.lightDepthTextureSize = LIGHT_DEPTH_TEX_SIZE;
-        // Attach the depth texture to this framebuffer
         gl.bindTexture(gl.TEXTURE_2D, this.lightDepthTexture);
 
-        // configures a depth texture (lightDepthTexture) and attaches it to a framebuffer (lightDepthFramebuffer) as a depth attachment
-        gl.texImage2D( // Specifies the properties of the depth texture
-            gl.TEXTURE_2D,      // target textture
-            0,                  // Specifies the level of detail. Level 0 is the base image level.
-            gl.DEPTH_COMPONENT, //  Specifies the internal format of the texture. Here, it indicates a depth component texture.
-            this.lightDepthTextureSize,   // Specifies the width of the texture.
-            this.lightDepthTextureSize,   // Specifies the height of the texture.
-            0,                  // Specifies the border of the texture.
-            gl.DEPTH_COMPONENT, // Specifies the format of the pixel data.
-            gl.UNSIGNED_INT,    // Specifies the data type of the pixel data.
-            null);              // Specifies the image data. Here, it's set to null since we're only allocating memory.
+        gl.texImage2D( 
+            gl.TEXTURE_2D,      
+            0,                  
+            gl.DEPTH_COMPONENT, 
+            this.lightDepthTextureSize,   
+            this.lightDepthTextureSize,  
+            0,                 
+            gl.DEPTH_COMPONENT, 
+            gl.UNSIGNED_INT,   
+            null);             
         
-        // Sets parameters for the texture, such as filtering and wrapping modes.
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); // Sets the magnification and minification filters to gl.NEAREST, indicating that the nearest texel should be used.
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); // Sets the wrapping modes for the texture to gl.CLAMP_TO_EDGE, which clamps texture coordinates to the range [0, 1].
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
         
-        this.lightDepthFramebuffer = gl.createFramebuffer(); // Creates a new framebuffer object.
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer); // Binds the framebuffer.
-        gl.framebufferTexture2D( // Attaches the depth texture to the framebuffer as a depth attachment.
-            gl.FRAMEBUFFER,       // Specifies the target framebuffer.
-            gl.DEPTH_ATTACHMENT,  // Specifies the attachment point. Here, it indicates that the texture will be used as a depth buffer.
-            gl.TEXTURE_2D,        // Specifies the type of the texture.
-            this.lightDepthTexture,         //  Specifies the texture to attach.
-            0);                   // Specifies the level of detail.
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null); // unbinds the framebuffer to return to the default framebuffer.
+        this.lightDepthFramebuffer = gl.createFramebuffer(); 
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.framebufferTexture2D( 
+            gl.FRAMEBUFFER,      
+            gl.DEPTH_ATTACHMENT, 
+            gl.TEXTURE_2D,       
+            this.lightDepthTexture,   
+            0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-
-        // Creates an unused color texture (unusedTexture) with the same size as the depth texture.
         this.unusedTexture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this.unusedTexture);
-        // Specifies properties of the color texture like filtering and wrapping.
+
         gl.texImage2D(
             gl.TEXTURE_2D,
             0,
@@ -1064,19 +1003,19 @@ export class Maze extends Base_Scene {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-       // Attaches this color texture to the framebuffer as a color attachment.
+
         gl.framebufferTexture2D(
-            gl.FRAMEBUFFER,        // target
-            gl.COLOR_ATTACHMENT0,  // attachment point
-            gl.TEXTURE_2D,         // texture target
-            this.unusedTexture,         // texture
-            0);                    // mip level
+            gl.FRAMEBUFFER,        
+            gl.COLOR_ATTACHMENT0,  
+            gl.TEXTURE_2D,         
+            this.unusedTexture,    
+            0);                  
         
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null); // cleanup: Unbinds the framebuffer.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null); 
     }
 
 
-    // render the scene by drawing boxes representing walls and a floor
+ 
     render_scene(context, program_state, shadow_pass, draw_light_source = false, draw_shadow = false) {
         let light_position = this.global_sun_position;
         let light_color = this.sun_light_color;
@@ -1084,25 +1023,22 @@ export class Maze extends Base_Scene {
         program_state.draw_shadow = draw_shadow;
         let box_model_transform = Mat4.identity();
         
-        // Light source rendering:
-        // If draw_light_source is true and it's the shadow pass, draw a sphere representing the light source using the shapes.sphere object
         if (draw_light_source && shadow_pass) {
             this.shapes.sphere.draw(context, program_state,
                 Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5, .5, .5)),
                 this.materials.light_src.override({color: light_color}));
         }
         
-        // Box rendering:
-        // iterate over each box coordinate in this.box_coord
-        const scale_factor = 1; // Adjust this factor to change the height
+   
+   
+        const scale_factor = 1; 
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
             
-            // Apply the scaling transformation
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
-                .times(Mat4.scale(1, scale_factor, 1)); // Scale only the y dimension
+                .times(Mat4.scale(1, scale_factor, 1)); 
             
             this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wallNew : this.materials.pure);
         }
@@ -1110,15 +1046,13 @@ export class Maze extends Base_Scene {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
-            
-            // Apply the scaling transformation
             box_model_transform = this.draw_box(context, program_state, box_model_transform, x, y, z)
-                .times(Mat4.translation(0, 2, 0)); // Scale only the y dimension
+                .times(Mat4.translation(0, 2, 0));
             
             this.shapes.cube.draw(context, program_state, box_model_transform, shadow_pass ? this.materials.wallNew : this.materials.pure);
         }
 
-        this.draw_floor(context, program_state, shadow_pass); // call draw_floor function to draw the floor
+        this.draw_floor(context, program_state, shadow_pass); 
         this.init_crosshair_canvas();
     }
 
@@ -1147,15 +1081,11 @@ export class Maze extends Base_Scene {
     }
 
     normalizeVector(vector) {
-        // Calculate the magnitude (length) of the vector
+
         const length = Math.sqrt(vector.reduce((sum, component) => sum + component ** 2, 0));
-        
-        // Check if the length is zero to avoid division by zero
         if (length === 0) {
             throw new Error("Cannot normalize a zero-length vector");
         }
-    
-        // Divide each component by the length to normalize
         return vector.map(component => component / length);
     }
 
@@ -1175,7 +1105,6 @@ export class Maze extends Base_Scene {
       
         const clockwise = Math.random() >= 0.5 ? 1 : -1;
 
-        // Calculate the new direction
         const cosAngle = Math.cos(randomAngleRad);
         const sinAngle = Math.sin(randomAngleRad) * clockwise;
 
@@ -1183,7 +1112,6 @@ export class Maze extends Base_Scene {
             vec[0] * cosAngle - vec[2] * sinAngle,
             vec[1],
             vec[0] * sinAngle + vec[2] * cosAngle,
-             // Assuming no change in the z-component for simplicity
         );
         newDirection = this.normalizeVector(newDirection);
         return vec3(newDirection[0]*scale, newDirection[1]*scale,newDirection[2]*scale);
@@ -1223,7 +1151,6 @@ export class Maze extends Base_Scene {
     }
 
 
-    // move box up and down at the same position
     draw_chest(context, program_state) {
         const t = program_state.animation_time / 1000;
         const max_degree = .5 * Math.PI;
@@ -1244,12 +1171,11 @@ export class Maze extends Base_Scene {
 
         let w = canvas.width;
         let h = canvas.height;
-        // Clear the previous crosshair
         ctx.clearRect(0, 0, w, h);
 
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
-        const size = 5;  // Size of the crosshair
+        const size = 5;  
 
         ctx.save();
 
@@ -1257,13 +1183,11 @@ export class Maze extends Base_Scene {
         ctx.lineWidth = 1;
         ctx.strokeStyle = 'rgba(255, 0, 0, 1)';
 
-        // Draw horizontal line
         ctx.beginPath();
         ctx.moveTo(centerX - size, centerY);
         ctx.lineTo(centerX + size, centerY);
         ctx.stroke();
 
-        // Draw vertical line
         ctx.beginPath();
         ctx.moveTo(centerX, centerY - size);
         ctx.lineTo(centerX, centerY + size);
@@ -1308,14 +1232,11 @@ export class Maze extends Base_Scene {
         this.mouse_enabled_canvases.add(context.canvas)
     }
     let oldMatrix = this.matrix();
-    //let oldInvMatrix = this.inverse();
-    // Move in first-person.  Scale the normal camera aiming speed by dt for smoothness:
+    
     this.first_person_flyaround(dt * r, dt * m, program_state);
-    // Also apply third-person "arcball" camera mode if a mouse drag is occurring:
     if (this.mouse.anchor)
         this.third_person_arcball(dt * r);
 
-        //other stuff
 
         super.display(context, program_state);
 
@@ -1379,14 +1300,14 @@ export class Maze extends Base_Scene {
         program_state.projection_transform = Mat4.perspective(Math.PI / 2.5, context.width / context.height, 0.01, 10000);
         this.render_scene(context, program_state, true, true, true);
 
-        const scale_factor = 2; // Adjust this factor to change the height
+        const scale_factor = 2; 
         let model_transform = Mat4.identity();
         for (let i = 0; i < this.box_coord.length; i++) {
             const x = original_box_size * this.box_coord[i][0];
             const y = original_box_size * this.box_coord[i][1];
             const z = -original_box_size * this.box_coord[i][2];
 
-            // Apply the scaling transformation
+         
             model_transform = this.draw_box(context, program_state, model_transform, x, y, z)
                 .times(Mat4.scale(1, scale_factor, 1)); 
             if (i % 2 === 0) this.draw_torch(context, program_state, x + 1.0, y + 0.3, z);
@@ -1485,7 +1406,6 @@ export class Maze extends Base_Scene {
             for(let p of this.projList){
                 if(!p.evil && this.check_bullet_collision(p, e) && e.cooldownTimer == 0){
                     
-                   // this.flashGrenadeTimer = 160;
                     
 
         
@@ -1525,7 +1445,6 @@ export class Maze extends Base_Scene {
         this.enemyList = this.enemyList.filter(enemy => enemy.health > 0);
         
 
-        //collision between human and enemy
         for(let e of this.enemyList){
             let enemyPos = this.get_enemy_box_tips(e.position);
             let personPos = this.get_person_box_tips(this.person_location);
@@ -1535,7 +1454,6 @@ export class Maze extends Base_Scene {
             }
         }
 
-        //collision between human and lava
         for(const [x,z] of this.lavaBlocks){
             let personPos = this.camPosition;
             
@@ -1580,7 +1498,6 @@ export class Maze extends Base_Scene {
             //this.proj.render(context, program_state, this.materials.bullet, this.shapes);
         }
 
-        // Update the particle system
 
         for (let i = this.smokeList.length - 1; i >= 0; i--) {
             if (this.smokeList[i].nothingLeft) {
@@ -1596,7 +1513,6 @@ export class Maze extends Base_Scene {
             smoke.render(context, program_state, this.shapes, this.materials.light_src);
         })
 
-        // Render the particle system
         let playerVector = this.lookatpoint.minus(this.camPosition).normalized();
         let newTimer = 0;
         this.grenadeList = this.grenadeList = this.grenadeList.filter(nade => nade.exploded == false);
@@ -1607,9 +1523,9 @@ export class Maze extends Base_Scene {
             }
             let anyMovement = (this.thrust[0] != 0) || (this.thrust[1] != 0) || (this.thrust[2] != 0);
             if(!this.freeze || (this.freeze && anyMovement)){
-                newTimer = grenade.update(dt, playerVector.copy(), this.camPosition); // Update each grenade with the delta time and walls array
+                newTimer = grenade.update(dt, playerVector.copy(), this.camPosition); 
             }
-            grenade.render(context, program_state, this.shapes, this.materials.light_src); // Render each grenade
+            grenade.render(context, program_state, this.shapes, this.materials.light_src); 
             if(grenade.toExplode == true){
                 let gPlayer = (grenade.position[0]-this.camPosition[0])**2 + (grenade.position[2]-this.camPosition[2])**2;
 
@@ -1626,7 +1542,6 @@ export class Maze extends Base_Scene {
         if(this.enemyParticleSystem != null){
             this.enemyParticleSystem.update(program_state.animation_delta_time / 1000);
 
-            // Render the particle system
             this.enemyParticleSystem.render(context, program_state, this.shapes, this.materials.light_src);
         }
        
@@ -1643,17 +1558,14 @@ export class Maze extends Base_Scene {
     }
 
     createShaderProgram(gl, vertex_shader_source, fragment_shader_source) {
-        // Create vertex shader
         let vertex_shader = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(vertex_shader, vertex_shader_source);
         gl.compileShader(vertex_shader);
     
-        // Create fragment shader
         let fragment_shader = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fragment_shader, fragment_shader_source);
         gl.compileShader(fragment_shader);
     
-        // Create shader program
         let shader_program = gl.createProgram();
         gl.attachShader(shader_program, vertex_shader);
         gl.attachShader(shader_program, fragment_shader);
@@ -1674,7 +1586,6 @@ export class Maze extends Base_Scene {
             }
             `;
 
-            // Fragment shader source code
             let fragment_shader_source = `
             precision mediump float;
             uniform float t;
@@ -1708,15 +1619,15 @@ export class Maze extends Base_Scene {
 
         
 
-            // Create vertex shader
+     
             let shader_program = this.createShaderProgram(gl, vertex_shader_source, fragment_shader_source);
 
-    // Set the value of the t uniform
+    
     let t_uniform_location = gl.getUniformLocation(shader_program, 't');
-    gl.useProgram(shader_program); // Ensure correct shader program is active
+    gl.useProgram(shader_program); 
     gl.uniform1f(t_uniform_location, t);
 
-    // Define vertices and indices for a full-screen quad
+    
     let vertices = new Float32Array([
         -1, -1,
         1, -1,
@@ -1729,22 +1640,20 @@ export class Maze extends Base_Scene {
         0, 2, 3,
     ]);
 
-    // Create vertex buffer for vertices
+    
     let vertex_buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-    // Create index buffer for indices
+    
     let index_buffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
-    // Bind the vertex buffer to attribute 0
     let position_attribute_location = gl.getAttribLocation(shader_program, 'position');
     gl.enableVertexAttribArray(position_attribute_location);
     gl.vertexAttribPointer(position_attribute_location, 2, gl.FLOAT, false, 0, 0);
 
-    // Draw the quad using the index buffer
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
     gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
     }
@@ -1774,23 +1683,19 @@ export class Maze extends Base_Scene {
 
 
     set_recipient(matrix_closure, inverse_closure) {
-        // set_recipient(): The camera matrix is not actually stored here inside Movement_Controls;
-        // instead, track an external target matrix to modify.  Targets must be pointer references
-        // made using closures.
+
         this.matrix = matrix_closure;
         this.inverse = inverse_closure;
     }
 
     reset(graphics_state) {
-        // reset(): Initially, the default target is the camera matrix that Shaders use, stored in the
-        // encountered program_state object.  Targets must be pointer references made using closures.
+        
         this.set_recipient(() => graphics_state.camera_transform,
             () => graphics_state.camera_inverse);
     }
 
     add_mouse_controls(canvas) {
-        // add_mouse_controls():  Attach HTML mouse events to the drawing canvas.
-        // First, measure mouse steering, for rotating the flyaround camera:
+       
         
         canvas.addEventListener('click', () => {
             canvas.requestPointerLock();
@@ -1815,11 +1720,7 @@ export class Maze extends Base_Scene {
             const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
             const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
     
-            // Handle the mouse movement
-           // console.log('Mouse moved:', movementX, movementY);
 
-
-                        // Calculate the direction vector from camPosition to lookatpoint
             const direction = [
                 this.lookatpoint[0] - this.camPosition[0],
                 this.lookatpoint[1] - this.camPosition[1],
@@ -1827,21 +1728,18 @@ export class Maze extends Base_Scene {
             ];
             const radius = Math.sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
 
-            // Convert direction vector to spherical coordinates
             let theta = Math.atan2(direction[2], direction[0]); 
             let phi = Math.acos(direction[1] / radius); 
             let sens = 0.1;
-            theta += movementX * sens * Math.PI / 180; // Horizontal movement
-            phi += movementY * sens * Math.PI / 180; // Vertical movement
+            theta += movementX * sens * Math.PI / 180; 
+            phi += movementY * sens * Math.PI / 180;
             const epsilon = 0.01; 
             phi = Math.max(0.01, Math.min(Math.PI - 0.01, phi));
 
-            // Convert back to Cartesian coordinates
             this.lookatpoint[0] = this.camPosition[0] + radius * Math.sin(phi) * Math.cos(theta);
             this.lookatpoint[1] = this.camPosition[1] + radius * Math.cos(phi);
             this.lookatpoint[2] = this.camPosition[2] + radius * Math.sin(phi) * Math.sin(theta);
 
-            // Set the new camera transformation
             this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
 
             /*
@@ -1859,7 +1757,6 @@ export class Maze extends Base_Scene {
         this.mouse = { "from_center": vec(0, 0) };
         const mouse_position = (e, rect = canvas.getBoundingClientRect()) =>
             vec(e.clientX - (rect.left + rect.right) / 2, e.clientY - (rect.bottom + rect.top) / 2);
-        // Set up mouse response.  The last one stops us from reacting if the mouse leaves the canvas:
         document.addEventListener("mouseup", e => {
             this.mouse.anchor = undefined;
         });
@@ -1887,7 +1784,6 @@ export class Maze extends Base_Scene {
         this.live_string(box => box.textContent = "- Positione: " + this.camPosition[0].toFixed(2) + ", " + this.camPosition[1].toFixed(2)
             + ", " + this.camPosition[2].toFixed(2));
         this.new_line();
-        // The facing directions are surprisingly affected by the left hand rule:
         this.live_string(box => box.textContent = "- Facing: " + ((this.z_axis[0] > 0 ? "West " : "East ")
             + (this.z_axis[1] > 0 ? "Down " : "Up ") + (this.z_axis[2] > 0 ? "North" : "South")));
         this.new_line();
@@ -1982,7 +1878,7 @@ export class Maze extends Base_Scene {
         const offsets_from_dead_box = {
             plus: [this.mouse.from_center[0] + leeway, this.mouse.from_center[1] + leeway],
             minus: [this.mouse.from_center[0] - leeway, this.mouse.from_center[1] - leeway]
-        };
+        };      
         //console.log("x distance is " + this.mouse.from_center[0]);
         //console.log("y distance is " + this.mouse.from_center[1]);
         // Apply a camera rotation movement, but only when the mouse is
@@ -2009,7 +1905,6 @@ export class Maze extends Base_Scene {
             }
         this.matrix().post_multiply(Mat4.rotation(-.1 * this.roll, 0, 0, 1));
         this.inverse().pre_multiply(Mat4.rotation(+.1 * this.roll, 0, 0, 1));
-        // Now apply translation movement of the camera, in the newest local coordinate frame.
       //  this.matrix().post_multiply(Mat4.translation(...this.thrust.times(-meters_per_frame)));
       //  this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
         let f = this.camPosition[0];
@@ -2023,14 +1918,13 @@ export class Maze extends Base_Scene {
         this.lookatpoint[0] += this.thrust[2];
         this.lookatpoint[2] += -1 * this.thrust[0];
         this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector)); */
-        // Calculate the forward direction vector (from camPosition to lookatpoint)
         const forwardDirection = [
             this.lookatpoint[0] - this.camPosition[0],
             0, // Ignore the y component
             this.lookatpoint[2] - this.camPosition[2]
         ];
 
-        // Normalize the forward direction vector
+       
         const forwardLength = Math.sqrt(forwardDirection[0] * forwardDirection[0] + forwardDirection[2] * forwardDirection[2]);
         const normalizedForward = [
             forwardDirection[0] / forwardLength,
@@ -2038,14 +1932,14 @@ export class Maze extends Base_Scene {
             forwardDirection[2] / forwardLength
         ];
 
-        // Calculate the perpendicular direction vector in the x-z plane
+       
         const perpendicularDirection = [
             -normalizedForward[2],
             0,
             normalizedForward[0]
         ];
 
-        // Scale the direction vectors by the thrust
+       
         const forwardMovement = [
             normalizedForward[0] * this.thrust[2],
             0,
@@ -2083,13 +1977,11 @@ export class Maze extends Base_Scene {
 
         }
 
-        // Update the camera position and lookat point with both forward and side movement
         this.camPosition[0] += forwardMovement[0] - sideMovement[0];
         this.camPosition[2] += forwardMovement[2] - sideMovement[2];
         this.lookatpoint[0] += forwardMovement[0] - sideMovement[0];
         this.lookatpoint[2] += forwardMovement[2] - sideMovement[2];
         
-        // Set the new camera transformation
         this.camera_transformation.set(Mat4.look_at(this.camPosition, this.lookatpoint, this.upvector));
 
         this.pos = this.inverse().times(vec4(0, 0, 0, 1));
@@ -2154,10 +2046,8 @@ class Particle {
     }
 
     update(dt) {
-        // Update particle position based on velocity
         //this.position[1] = this.position[1] + (this.velocity.times(dt));
         this.position[1] = this.position[1] + dt * this.velocity[1];
-        // Update particle age
         this.age += dt;
         
     }
@@ -2167,15 +2057,12 @@ class Particle {
     }
 
     render(context, program_state, shapes, material) {
-        // Render the particle (using a simple sphere or point for demonstration)
         let model_transform = Mat4.translation(...this.position);
         model_transform = model_transform.times(Mat4.scale(0.2,0.2,0.2));
-        // Adjust size based on age (optional)
         const size = 1.0 - (this.age / this.lifespan);
         const scaled_transform = model_transform.times(Mat4.scale(size, size, size));
        
-        // Assuming there's a draw_sphere function available for rendering
-        shapes.sphere.draw(context, program_state, scaled_transform, material); //Color.of(0.5, 0.5, 0.5, 1.0 - this.age / this.lifespan
+        shapes.sphere.draw(context, program_state, scaled_transform, material); 
     }
 }
 
@@ -2193,7 +2080,6 @@ class ParticleSystem {
         if(!this.active){
             return;
         }
-        // Create a new particle with random velocity and lifespan
         const velocity = vec3(Math.random() - 0.5, 2*Math.random() + 0.5, Math.random() - 0.5);
         const randomPos = vec3(2 * Math.random() - 1, 0, 2 * Math.random() - 2);
         const lifespan = Math.random() * 10 + 1; 
@@ -2202,11 +2088,8 @@ class ParticleSystem {
     }
 
     update(dt) {
-        // Emit new particles
         this.emitParticle();
-        // Update all particles
         this.particles.forEach(particle => particle.update(dt));
-        // Remove dead particles
         this.particles = this.particles.filter(particle => particle.isAlive());
         if(this.particles.length == 0){
             this.nothingLeft = true;
@@ -2218,7 +2101,6 @@ class ParticleSystem {
     }
 
     render(context, program_state, shapes, material) {
-        // Render all particles
         this.particles.forEach(particle => particle.render(context, program_state, shapes, material));
     }
 }
@@ -2253,8 +2135,8 @@ class MoveableArrow {
 
     get_arrow_box_tips() {
         const arrow_location = this.current_position;
-        const base = 0.5; // Adjust the size as necessary to match the arrow's bounding box
-        const z_extension = 5; // Extend the arrow tips by 2 units along the Z-axis
+        const base = 0.5;
+        const z_extension = 5; 
         const offsets = this.get_offsets(base);
         let res = [];
         for (let offset of offsets) {
@@ -2280,7 +2162,7 @@ class MoveableArrow {
 
     get_person_box_tips(person_position) {
         const person_location = person_position;
-        const base = 0.5 * 0.3; // Defines half the size of the person's bounding box
+        const base = 0.5 * 0.3; 
         const offsets = this.get_offsets(base);
         let res = [];
         for (let offset of offsets) {
@@ -2293,9 +2175,9 @@ class MoveableArrow {
 
     box_collide(box1, box2) {
         return (
-            box1[0] < box2[1] && box1[1] > box2[0] && // X-axis overlap
-            box1[2] < box2[3] && box1[3] > box2[2] && // Y-axis overlap
-            box1[4] < box2[5] && box1[5] > box2[4]    // Z-axis overlap
+            box1[0] < box2[1] && box1[1] > box2[0] && 
+            box1[2] < box2[3] && box1[3] > box2[2] && 
+            box1[4] < box2[5] && box1[5] > box2[4]    
         );
     }
 
@@ -2303,7 +2185,6 @@ class MoveableArrow {
         const arrow_tips = this.get_arrow_box_tips();
         const person_tips = this.get_person_box_tips(person_position);
 
-        // Convert the tips to bounding boxes
         const arrow_box = [
             Math.min(...arrow_tips.map(tip => tip[0])), Math.max(...arrow_tips.map(tip => tip[0])),
             Math.min(...arrow_tips.map(tip => tip[1])), Math.max(...arrow_tips.map(tip => tip[1])),
@@ -2323,32 +2204,19 @@ class MoveableArrow {
     }
 }
 
-// Usage example:
-// Assuming `shapes.tetra` is an instance of `Tetrahedron` and `initial_position` is a vec3 object.
-// const arrow = new MoveableArrow(initial_position, 1, 1, true);
-// arrow.render(context, program_state, shapes, material);
-// arrow.check_collision(player_position);
+
 
 
 
 class Grenade {
     constructor(camPosition, lookatpoint, objectlist, func, flash, drt, timer) {
-        // Calculate the initial velocity based on the direction vector (lookatpoint - camPosition)
         const direction = lookatpoint.minus(camPosition).normalized();
-        const speed = drt; // Adjust speed as necessary
+        const speed = drt;
         this.velocity = direction.times(speed);
-        // Set the initial position to the camera position
         this.position = camPosition.copy();
-        
-        // Gravity constant
         this.gravity = vec3(0, -9.8, 0);
-        
-        // Initial time
         this.time = 0;
-        
-        // Explosion countdown (in seconds)
         this.explosionCountdown = 0.7;
-        // Check if grenade has exploded
         this.exploded = false;
         this.prev;
         this.mainList = objectlist;
@@ -2360,35 +2228,27 @@ class Grenade {
         this.flashTime = 0;
     }
     
-    // Update grenade position based on projectile motion equations
     update(dt,playerVec, playerPoint) {
         if (this.exploded) return;
 
         this.time += dt;
         this.prev = this.position.copy()
-        // Update position based on kinematics equations
         this.position = this.position.plus(this.velocity.times(dt)).plus(this.gravity.times(0.5 * dt * dt));
         
-        // Update velocity based on gravity
         this.velocity = this.velocity.plus(this.gravity.times(dt));
         
-        // Check for collision with walls and handle reflection
-        //this.handleCollisions(walls);
-        
-        // Check for collision with ground
+
         if (this.position[1] <= 0) {
-            this.position[1] = 0; // Ensure grenade doesn't go below ground
-            this.velocity[1] = 0; // Stop vertical movement
+            this.position[1] = 0; 
+            this.velocity[1] = 0; 
         }
         
-        // Check if it's time to explode
         if (this.time >= this.explosionCountdown) {
             return this.explode(playerVec.copy(), playerPoint);
         }
         return 0;
     }
 
-    // Handle explosion
     explode(playerVec, playerPoint) {
         this.exploded = true;
         //this.mainList.push(new ParticleSystem(this.prev, 10));
@@ -2404,64 +2264,14 @@ class Grenade {
   
         
 
-        // Spawn ParticleSystem at the grenade's position
-        // new ParticleSystem(this.position);
+
     }
 
-    // Render the grenade
     render(context, program_state, shapes, material) {
         if (this.exploded) return;
 
-        // Grenade rendering logic
         const model_transform = Mat4.translation(...this.position).times(Mat4.scale(0.2, 0.2, 0.2));
         shapes.sphere.draw(context, program_state, model_transform, material);
-    }
-
-    // Calculate offsets for bounding box corners
-    get_offsets(base) {
-        return [
-            vec(base, -base),
-            vec(base, base),
-            vec(-base, base),
-            vec(-base, -base)
-        ];
-    }
-
-    // Get bounding box tips for a wall brick
-    get_wall_brick_box_tips(box_location) {
-        const base = 1; // the size of the box is set to 1
-        const offsets = this.get_offsets(base); // uses get_offsets(base) to get the corners of the box relative to its center
-        let res = [];
-        for (let offset of offsets) {
-            res.push(
-                vec(box_location[0] + offset[0], -box_location[2] - offset[1])
-            )
-        }
-        return res; // the coordinates are stored in the res array
-    }
-
-    // Check for collision between two 1D intervals
-    box_collide_1d(box1, box2) {
-        const xmin1 = box1[0];
-        const xmax1 = box1[1];
-        const xmin2 = box2[0];
-        const xmax2 = box2[1];
-        return xmax1 >= xmin2 && xmax2 >= xmin1;
-    }
-
-    // Check for collision between two 2D boxes
-    box_collide_2d(box1, box2) {
-        const xmin1 = Math.min(...box1.map(c => c[0]));
-        const xmax1 = Math.max(...box1.map(c => c[0]));
-        const ymin1 = Math.min(...box1.map(c => c[1]));
-        const ymax1 = Math.max(...box1.map(c => c[1]));
-        const xmin2 = Math.min(...box2.map(c => c[0]));
-        const xmax2 = Math.max(...box2.map(c => c[0]));
-        const ymin2 = Math.min(...box2.map(c => c[1]));
-        const ymax2 = Math.max(...box2.map(c => c[1]));
-
-        return this.box_collide_1d([xmin1, xmax1], [xmin2, xmax2]) &&
-            this.box_collide_1d([ymin1, ymax1], [ymin2, ymax2]);
     }
 }
 
@@ -2470,7 +2280,6 @@ class Grenade {
 const Whiteout_Shader = tiny.Shader = 
     class Whiteout_Shader extends tiny.Shader {
         
-        // Define the vertex shader
         vertex_glsl_code() {
             return `
                 attribute vec3 position;
@@ -2483,7 +2292,6 @@ const Whiteout_Shader = tiny.Shader =
             `;
         }
 
-        // Define the fragment shader
         fragment_glsl_code() {
             return `
                 precision mediump float;
@@ -2499,7 +2307,6 @@ const Whiteout_Shader = tiny.Shader =
             `;
         }
 
-        // Update the GPU with the uniform variable
         update_GPU(context, gpu_addresses, program_state, model_transform, material) {
             let [P, C, M] = [program_state.projection_transform, program_state.camera_inverse, model_transform];
             context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false, Mat4.identity().times(P).times(C).times(M).flat());
