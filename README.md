@@ -1,3 +1,5 @@
+# Temporal Hunter
+
 - Developed an open-world game using OpenGL and GLFW, optimizing pipeline with custom GLSL shaders for real-time ray
 tracing and adaptive sampling to improve rendering time by 20%
 
